@@ -1,7 +1,7 @@
 {
   "name": "mcp-database-server",
   "version": "0.1.0",
-  "description": "MCP server exposing Postgres and Redis as tools, with lazy connection management, retry, circuit breaking, and per-connection read-only mode.",
+  "description": "MCP server exposing Postgres, Redis, and Elasticsearch as tools, with lazy connection management, retry, circuit breaking, and per-connection read-only mode.",
   "type": "module",
   "engines": {
     "node": ">=18.18"
@@ -16,6 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@elastic/elasticsearch": "^9.4.2",
     "cockatiel": "^4.0.0",
     "fastmcp": "^4.4.0",
     "ioredis": "^5.11.1",

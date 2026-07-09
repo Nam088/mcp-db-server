@@ -1,6 +1,6 @@
 # mcp-database-server
 
-MCP server exposing Postgres and Redis as tools, supporting multiple named connections of each type at once. Connections are established lazily in the background: the server always starts and registers all tools immediately, even if every database is unreachable. Each connection retries with exponential backoff and opens a circuit breaker after repeated failures, so a dead database never gets hammered and never crashes the process.
+MCP server exposing Postgres, Redis, and Elasticsearch as tools, supporting multiple named connections of each type at once. Connections are established lazily in the background: the server always starts and registers all tools immediately, even if every database is unreachable. Each connection retries with exponential backoff and opens a circuit breaker after repeated failures, so a dead database never gets hammered and never crashes the process.
 
 ## Tools
 
@@ -8,6 +8,7 @@ MCP server exposing Postgres and Redis as tools, supporting multiple named conne
 - `db_reload_config` — reload the `databases.config.yml` file from disk and reconcile connections: unchanged entries are left running, added/changed/removed entries are recreated or torn down.
 - `pg_query`, `pg_execute_sql`, `pg_list_tables`, `pg_describe_table`, and 15+ more Postgres utility tools. They accept an optional `schema` and `connectionId`.
 - `redis_get`, `redis_set`, `redis_del`, and 20+ more Redis utility tools. They accept an optional `connectionId`.
+- `es_cluster_health`, `es_list_indices`, `es_index_stats`, `es_search`, `es_count`, `es_get_doc`, `es_index_doc`, `es_update_doc`, `es_delete_doc`, `es_delete_by_query` — Elasticsearch tools. They accept an optional `connectionId`.
 
 ## Per-connection read-only mode
 
@@ -31,6 +32,10 @@ connections:
     type: redis
     connectionString: ${REDIS_URL}
     readOnly: false
+  - id: logs-es
+    type: elasticsearch
+    connectionString: ${ELASTICSEARCH_URL}
+    readOnly: true
 ```
 
 Redis tools that can return an unbounded amount of data (`redis_keys`, `redis_smembers`, `redis_lrange`) are capped at 1000 items; past that, the result is wrapped as `{ items, truncated: true, returned, total }` instead of a plain array.
@@ -40,8 +45,10 @@ Or, for a single connection of each type, skip the config file and use env vars:
 ```
 POSTGRES_URL=postgresql://user:password@localhost:5432/mydb
 REDIS_URL=redis://localhost:6379
+ELASTICSEARCH_URL=http://localhost:9200
 POSTGRES_READ_ONLY=true
 REDIS_READ_ONLY=true
+ELASTICSEARCH_READ_ONLY=true
 POSTGRES_DEFAULT_SCHEMA=public
 POSTGRES_STATEMENT_TIMEOUT_MS=30000
 ```

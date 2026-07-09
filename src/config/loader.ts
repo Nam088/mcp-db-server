@@ -3,7 +3,7 @@ import { parse } from "yaml";
 
 export interface DatabaseConfigEntry {
   id: string;
-  type: "postgres" | "redis";
+  type: "postgres" | "redis" | "elasticsearch";
   connectionString: string;
   readOnly: boolean;
   defaultSchema?: string;
@@ -27,8 +27,8 @@ function expandEnvVars(value: string): string {
   return value.replace(/\$\{([A-Z0-9_]+)\}/g, (_match, name: string) => process.env[name] ?? "");
 }
 
-function assertKnownType(type: string): "postgres" | "redis" {
-  if (type === "postgres" || type === "redis") return type;
+function assertKnownType(type: string): "postgres" | "redis" | "elasticsearch" {
+  if (type === "postgres" || type === "redis" || type === "elasticsearch") return type;
   throw new Error(`Unsupported database type in config: ${type}`);
 }
 
@@ -69,6 +69,14 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       type: "redis",
       connectionString: process.env.REDIS_URL,
       readOnly: envReadOnly("REDIS_READ_ONLY"),
+    });
+  }
+  if (process.env.ELASTICSEARCH_URL) {
+    entries.push({
+      id: "elasticsearch",
+      type: "elasticsearch",
+      connectionString: process.env.ELASTICSEARCH_URL,
+      readOnly: envReadOnly("ELASTICSEARCH_READ_ONLY"),
     });
   }
   return entries;

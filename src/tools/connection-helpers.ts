@@ -2,8 +2,9 @@ import { UserError } from "fastmcp";
 import type { ConnectionStatus } from "../connections/types.js";
 import type { PostgresConnection } from "../connections/postgres-connection.js";
 import type { RedisConnection } from "../connections/redis-connection.js";
+import type { ElasticsearchConnection } from "../connections/elasticsearch-connection.js";
 
-type AnyConnection = PostgresConnection | RedisConnection;
+type AnyConnection = PostgresConnection | RedisConnection | ElasticsearchConnection;
 
 interface RegistryLike {
   get(id: string): AnyConnection | undefined;
@@ -13,9 +14,10 @@ interface RegistryLike {
 
 export function resolveConnection(registry: RegistryLike, type: "postgres", connectionId?: string): PostgresConnection;
 export function resolveConnection(registry: RegistryLike, type: "redis", connectionId?: string): RedisConnection;
+export function resolveConnection(registry: RegistryLike, type: "elasticsearch", connectionId?: string): ElasticsearchConnection;
 export function resolveConnection(
   registry: RegistryLike,
-  type: "postgres" | "redis",
+  type: "postgres" | "redis" | "elasticsearch",
   connectionId?: string,
 ): AnyConnection {
   const conn = connectionId ? registry.get(connectionId) : registry.findOneByType(type);

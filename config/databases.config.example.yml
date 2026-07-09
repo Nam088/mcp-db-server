@@ -12,3 +12,7 @@ connections:
     type: redis
     connectionString: ${REDIS_URL}
     readOnly: false
+  - id: logs-es
+    type: elasticsearch
+    connectionString: ${ELASTICSEARCH_URL}
+    readOnly: true

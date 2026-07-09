@@ -10,8 +10,10 @@ afterEach(() => {
   if (existsSync(tmpConfigPath)) rmSync(tmpConfigPath);
   delete process.env.POSTGRES_URL;
   delete process.env.REDIS_URL;
+  delete process.env.ELASTICSEARCH_URL;
   delete process.env.POSTGRES_READ_ONLY;
   delete process.env.REDIS_READ_ONLY;
+  delete process.env.ELASTICSEARCH_READ_ONLY;
   delete process.env.TEST_PG_URL;
 });
 
@@ -66,17 +68,47 @@ describe("loadDatabaseConfig", () => {
     expect(entries[0].statementTimeoutMs).toBe(5000);
   });
 
-  it("falls back to POSTGRES_URL/REDIS_URL and per-type *_READ_ONLY env vars when no config file exists", () => {
+  it("falls back to POSTGRES_URL/REDIS_URL/ELASTICSEARCH_URL and per-type *_READ_ONLY env vars when no config file exists", () => {
     process.env.POSTGRES_URL = "postgresql://localhost/db";
     process.env.REDIS_URL = "redis://localhost:6379";
+    process.env.ELASTICSEARCH_URL = "http://localhost:9200";
     process.env.POSTGRES_READ_ONLY = "false";
     // REDIS_READ_ONLY intentionally unset -> defaults to true
+    // ELASTICSEARCH_READ_ONLY intentionally unset -> defaults to true
 
     const entries = loadDatabaseConfig(join(tmpdir(), "does-not-exist.yml"));
     expect(entries).toEqual([
       { id: "postgres", type: "postgres", connectionString: "postgresql://localhost/db", readOnly: false },
       { id: "redis", type: "redis", connectionString: "redis://localhost:6379", readOnly: true },
+      { id: "elasticsearch", type: "elasticsearch", connectionString: "http://localhost:9200", readOnly: true },
     ]);
+  });
+
+  it("parses an elasticsearch entry from a config file", () => {
+    writeFileSync(
+      tmpConfigPath,
+      [
+        "connections:",
+        "  - id: logs-es",
+        "    type: elasticsearch",
+        "    connectionString: http://localhost:9200",
+        "    readOnly: false",
+      ].join("\n"),
+    );
+
+    const entries = loadDatabaseConfig(tmpConfigPath);
+    expect(entries).toEqual([
+      { id: "logs-es", type: "elasticsearch", connectionString: "http://localhost:9200", readOnly: false },
+    ]);
+  });
+
+  it("throws for an unsupported database type in a config file", () => {
+    writeFileSync(
+      tmpConfigPath,
+      ["connections:", "  - id: mongo", "    type: mongodb", "    connectionString: mongodb://x"].join("\n"),
+    );
+
+    expect(() => loadDatabaseConfig(tmpConfigPath)).toThrow(/Unsupported database type/);
   });
 
   it("returns an empty list when no config file and no env vars are present", () => {

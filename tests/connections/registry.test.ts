@@ -16,6 +16,13 @@ vi.mock("ioredis", () => {
   }));
   return { default: RedisMock, Redis: RedisMock };
 });
+vi.mock("@elastic/elasticsearch", () => {
+  const ClientMock = vi.fn().mockImplementation(() => ({
+    ping: vi.fn().mockResolvedValue(true),
+    close: vi.fn().mockResolvedValue(undefined),
+  }));
+  return { Client: ClientMock };
+});
 
 const loadDatabaseConfigMock = vi.fn();
 vi.mock("../../src/config/loader.js", () => ({
@@ -38,6 +45,16 @@ describe("ConnectionRegistry", () => {
     expect(registry.get("missing")).toBeUndefined();
     expect(registry.countByType("postgres")).toBe(1);
     expect(registry.findOneByType("postgres")?.id).toBe("primary-pg");
+  });
+
+  it("builds an elasticsearch connection from a config entry", () => {
+    const registry = new ConnectionRegistry([
+      { id: "logs-es", type: "elasticsearch", connectionString: "http://x:9200", readOnly: true },
+    ]);
+
+    expect(registry.get("logs-es")?.type).toBe("elasticsearch");
+    expect(registry.get("logs-es")?.readOnly).toBe(true);
+    expect(registry.countByType("elasticsearch")).toBe(1);
   });
 
   it("supports multiple connections of the same type with independent readOnly modes", () => {

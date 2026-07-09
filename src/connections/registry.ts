@@ -1,9 +1,10 @@
 import { PostgresConnection } from "./postgres-connection.js";
 import { RedisConnection } from "./redis-connection.js";
+import { ElasticsearchConnection } from "./elasticsearch-connection.js";
 import { loadDatabaseConfig, type DatabaseConfigEntry } from "../config/loader.js";
 import type { ConnectionStatus } from "./types.js";
 
-export type AnyConnection = PostgresConnection | RedisConnection;
+export type AnyConnection = PostgresConnection | RedisConnection | ElasticsearchConnection;
 
 function entriesEqual(a: DatabaseConfigEntry, b: DatabaseConfigEntry): boolean {
   return (
@@ -37,6 +38,13 @@ export class ConnectionRegistry {
         readOnly: entry.readOnly,
         defaultSchema: entry.defaultSchema,
         statementTimeoutMs: entry.statementTimeoutMs,
+      });
+    }
+    if (entry.type === "elasticsearch") {
+      return new ElasticsearchConnection({
+        id: entry.id,
+        connectionString: entry.connectionString,
+        readOnly: entry.readOnly,
       });
     }
     return new RedisConnection({ id: entry.id, connectionString: entry.connectionString, readOnly: entry.readOnly });

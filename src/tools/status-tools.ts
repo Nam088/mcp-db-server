@@ -6,7 +6,7 @@ export function registerStatusTools(server: FastMCP, registry: ConnectionRegistr
   server.addTool({
     name: "db_status",
     description:
-      "List the live connection state of every configured database (postgres/redis), including state, readOnly mode, last error, and next retry time.",
+      "List the live connection state of every configured database (postgres/redis/elasticsearch), including state, readOnly mode, last error, and next retry time.",
     parameters: z.object({}),
     execute: async () => {
       return JSON.stringify(registry.listStatuses());

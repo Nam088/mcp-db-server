@@ -3,6 +3,7 @@ import type { ConnectionRegistry } from "../connections/registry.js";
 import { registerStatusTools } from "../tools/status-tools.js";
 import { registerPostgresTools } from "../tools/postgres-tools.js";
 import { registerRedisTools } from "../tools/redis-tools.js";
+import { registerElasticsearchTools } from "../tools/elasticsearch-tools.js";
 
 export function createServer(registry: ConnectionRegistry): FastMCP {
   const server = new FastMCP({
@@ -13,6 +14,7 @@ export function createServer(registry: ConnectionRegistry): FastMCP {
   registerStatusTools(server, registry);
   registerPostgresTools(server, registry);
   registerRedisTools(server, registry);
+  registerElasticsearchTools(server, registry);
 
   return server;
 }
