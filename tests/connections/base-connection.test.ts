@@ -16,6 +16,10 @@ class TestConnection extends BaseConnection<string> {
     this.attempts++;
     return this.behavior(this.attempts);
   }
+
+  protected async closeClient(_client: string): Promise<void> {
+    // no-op
+  }
 }
 
 async function waitUntil(predicate: () => boolean, timeoutMs = 2000): Promise<void> {
@@ -36,7 +40,7 @@ describe("BaseConnection", () => {
     conn.start();
     await waitUntil(() => conn.state === "connected");
 
-    const result = conn.getClient();
+    const result = await conn.getClient();
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.client).toBe("client-ok");
     conn.stop();
@@ -51,14 +55,11 @@ describe("BaseConnection", () => {
     conn.start();
     await waitUntil(() => conn.attempts >= 1);
 
-    const early = conn.getClient();
-    expect(early.ok).toBe(false);
-    if (!early.ok) {
-      expect(["connecting", "retrying", "failed"]).toContain(early.status.state);
-    }
+    const early = conn.getStatus();
+    expect(["connecting", "retrying", "failed"]).toContain(early.state);
 
     await waitUntil(() => conn.state === "connected");
-    expect(conn.getClient().ok).toBe(true);
+    expect((await conn.getClient()).ok).toBe(true);
     conn.stop();
   });
 
@@ -67,7 +68,7 @@ describe("BaseConnection", () => {
       async () => {
         throw new Error("always fails");
       },
-      { maxConsecutiveFailures: 2, circuitResetMs: 60_000 },
+      { maxConsecutiveFailures: 2, circuitResetMs: 60_000, maxRetries: 100 },
     );
 
     conn.start();
@@ -77,9 +78,46 @@ describe("BaseConnection", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(conn.attempts).toBe(attemptsAtOpen);
 
-    const result = conn.getClient();
+    const result = await conn.getClient();
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status.state).toBe("circuit_open");
+    conn.stop();
+  });
+
+  it("getClient() returns immediately instead of waiting for the connection to establish", async () => {
+    const conn = new TestConnection(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return "client-ok";
+    });
+
+    const startedAt = Date.now();
+    const result = await conn.getClient();
+    expect(Date.now() - startedAt).toBeLessThan(50);
+    expect(result.ok).toBe(false);
+
+    await waitUntil(() => conn.state === "connected");
+    conn.stop();
+  });
+
+  it("getClient() re-triggers the connection loop once it has given up after maxRetries", async () => {
+    let shouldSucceed = false;
+    const conn = new TestConnection(
+      async () => {
+        if (!shouldSucceed) throw new Error("boom");
+        return "client-ok";
+      },
+      { maxRetries: 1 },
+    );
+
+    conn.start();
+    await waitUntil(() => conn.state === "failed");
+    const attemptsAfterGivingUp = conn.attempts;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(conn.attempts).toBe(attemptsAfterGivingUp); // confirms the loop gave up, not just backing off
+
+    shouldSucceed = true;
+    await conn.getClient();
+    await waitUntil(() => conn.state === "connected");
     conn.stop();
   });
 
@@ -98,7 +136,7 @@ describe("BaseConnection", () => {
 
     conn.start();
     await waitUntil(() => conn.state === "failed");
-    const result = conn.getClient();
+    const result = await conn.getClient();
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.status.lastError?.message).toContain("ECONNREFUSED");

@@ -41,7 +41,7 @@ describe("RedisConnection", () => {
 
     conn.start();
     await waitUntil(() => conn.state === "connected");
-    expect(conn.getClient().ok).toBe(true);
+    expect((await conn.getClient()).ok).toBe(true);
     conn.stop();
   });
 
@@ -57,7 +57,7 @@ describe("RedisConnection", () => {
 
     conn.start();
     await waitUntil(() => conn.state === "failed" || conn.state === "retrying");
-    const result = conn.getClient();
+    const result = await conn.getClient();
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status.lastError?.message).toBe("ECONNREFUSED");
     conn.stop();
@@ -73,7 +73,8 @@ describe("RedisConnection", () => {
     expect(lastErrorHandler).toBeDefined();
 
     lastErrorHandler?.(new Error("socket closed"));
-    expect(conn.state).toBe("failed");
+    // Since it auto-reconnects, wait until it reconnects successfully
+    await waitUntil(() => conn.state === "connected");
     conn.stop();
   });
 

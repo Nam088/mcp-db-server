@@ -10,7 +10,7 @@ async function main(): Promise<void> {
   const configPath = process.env.DATABASES_CONFIG_PATH ?? join(__dirname, "..", "config", "databases.config.yml");
   const entries = loadDatabaseConfig(configPath);
 
-  const registry = new ConnectionRegistry(entries);
+  const registry = new ConnectionRegistry(entries, configPath);
   const server = createServer(registry);
 
   // Tools are registered above; connections start in the background and never block startup.

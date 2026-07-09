@@ -6,6 +6,8 @@ export interface DatabaseConfigEntry {
   type: "postgres" | "redis";
   connectionString: string;
   readOnly: boolean;
+  defaultSchema?: string;
+  statementTimeoutMs?: number;
 }
 
 interface RawConnectionEntry {
@@ -13,6 +15,8 @@ interface RawConnectionEntry {
   type: string;
   connectionString: string;
   readOnly?: boolean;
+  defaultSchema?: string;
+  statementTimeoutMs?: number;
 }
 
 interface RawConfigFile {
@@ -41,6 +45,8 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       type: assertKnownType(entry.type),
       connectionString: expandEnvVars(entry.connectionString),
       readOnly: entry.readOnly ?? true,
+      defaultSchema: entry.defaultSchema,
+      statementTimeoutMs: entry.statementTimeoutMs,
     }));
   }
 
@@ -51,6 +57,10 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       type: "postgres",
       connectionString: process.env.POSTGRES_URL,
       readOnly: envReadOnly("POSTGRES_READ_ONLY"),
+      defaultSchema: process.env.POSTGRES_DEFAULT_SCHEMA,
+      statementTimeoutMs: process.env.POSTGRES_STATEMENT_TIMEOUT_MS
+        ? Number(process.env.POSTGRES_STATEMENT_TIMEOUT_MS)
+        : undefined,
     });
   }
   if (process.env.REDIS_URL) {

@@ -29,4 +29,28 @@ describe("db_status tool", () => {
     const result = await fakeServer.tools.db_status.execute({});
     expect(JSON.parse(result)).toEqual(statuses);
   });
+
+  it("db_reload_config calls reload on the registry and returns new statuses", async () => {
+    const fakeServer = new FakeServer();
+    let reloadCalled = false;
+    const statuses: ConnectionStatus[] = [
+      { id: "primary-pg", type: "postgres", state: "connected", readOnly: true },
+    ];
+    const fakeRegistry = {
+      reload: async () => {
+        reloadCalled = true;
+      },
+      listStatuses: () => statuses,
+    };
+
+    registerStatusTools(fakeServer as never, fakeRegistry as never);
+
+    const result = await fakeServer.tools.db_reload_config.execute({});
+    expect(reloadCalled).toBe(true);
+    expect(JSON.parse(result)).toEqual({
+      success: true,
+      message: "Configuration reloaded and connections recreated.",
+      connections: statuses,
+    });
+  });
 });

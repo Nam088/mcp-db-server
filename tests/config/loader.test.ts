@@ -50,6 +50,22 @@ describe("loadDatabaseConfig", () => {
     expect(entries).toEqual([{ id: "primary-pg", type: "postgres", connectionString: "postgres://x", readOnly: true }]);
   });
 
+  it("reads a per-connection statementTimeoutMs from a config file", () => {
+    writeFileSync(
+      tmpConfigPath,
+      [
+        "connections:",
+        "  - id: primary-pg",
+        "    type: postgres",
+        "    connectionString: postgres://x",
+        "    statementTimeoutMs: 5000",
+      ].join("\n"),
+    );
+
+    const entries = loadDatabaseConfig(tmpConfigPath);
+    expect(entries[0].statementTimeoutMs).toBe(5000);
+  });
+
   it("falls back to POSTGRES_URL/REDIS_URL and per-type *_READ_ONLY env vars when no config file exists", () => {
     process.env.POSTGRES_URL = "postgresql://localhost/db";
     process.env.REDIS_URL = "redis://localhost:6379";
@@ -66,5 +82,14 @@ describe("loadDatabaseConfig", () => {
   it("returns an empty list when no config file and no env vars are present", () => {
     const entries = loadDatabaseConfig(join(tmpdir(), "does-not-exist.yml"));
     expect(entries).toEqual([]);
+  });
+
+  it("reads POSTGRES_STATEMENT_TIMEOUT_MS as a number when falling back to env vars", () => {
+    process.env.POSTGRES_URL = "postgresql://localhost/db";
+    process.env.POSTGRES_STATEMENT_TIMEOUT_MS = "5000";
+
+    const entries = loadDatabaseConfig(join(tmpdir(), "does-not-exist.yml"));
+    expect(entries[0].statementTimeoutMs).toBe(5000);
+    delete process.env.POSTGRES_STATEMENT_TIMEOUT_MS;
   });
 });

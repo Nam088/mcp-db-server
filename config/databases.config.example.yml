@@ -2,6 +2,7 @@ connections:
   - id: primary-pg
     type: postgres
     connectionString: ${POSTGRES_URL}
+    statementTimeoutMs: 30000
     readOnly: true
   - id: reporting-pg
     type: postgres

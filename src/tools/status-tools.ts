@@ -12,4 +12,15 @@ export function registerStatusTools(server: FastMCP, registry: ConnectionRegistr
       return JSON.stringify(registry.listStatuses());
     },
   });
+
+  server.addTool({
+    name: "db_reload_config",
+    description:
+      "Reload the databases.config.yml configuration file from disk, recreate connections, and reconnect.",
+    parameters: z.object({}),
+    execute: async () => {
+      await registry.reload();
+      return JSON.stringify({ success: true, message: "Configuration reloaded and connections recreated.", connections: registry.listStatuses() });
+    },
+  });
 }

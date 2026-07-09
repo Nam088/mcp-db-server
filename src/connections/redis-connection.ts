@@ -27,4 +27,8 @@ export class RedisConnection extends BaseConnection<Redis> {
     await client.ping();
     return client;
   }
+
+  protected async closeClient(client: Redis): Promise<void> {
+    await client.quit();
+  }
 }
