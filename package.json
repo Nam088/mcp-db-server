@@ -1,0 +1,33 @@
+{
+  "name": "mcp-database-server",
+  "version": "0.1.0",
+  "description": "MCP server exposing Postgres and Redis as tools, with lazy connection management, retry, circuit breaking, and per-connection read-only mode.",
+  "type": "module",
+  "engines": {
+    "node": ">=18.18"
+  },
+  "bin": {
+    "mcp-database-server": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "cockatiel": "^4.0.0",
+    "fastmcp": "^4.4.0",
+    "ioredis": "^5.11.1",
+    "pg": "^8.22.0",
+    "yaml": "^2.9.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.20.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
