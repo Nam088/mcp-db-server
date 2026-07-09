@@ -14,6 +14,18 @@ export interface BaseConnectionOptions {
 
 const defaultSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Node wraps dual-stack connection failures (e.g. ECONNREFUSED) in an AggregateError
+ * whose own .message is empty; unwrap it so lastError is actually useful to read.
+ */
+function extractErrorMessage(err: Error): string {
+  if (err.message) return err.message;
+  if (err instanceof AggregateError && err.errors.length > 0) {
+    return err.errors.map((sub) => (sub instanceof Error ? sub.message : String(sub))).join("; ");
+  }
+  return String(err);
+}
+
 export abstract class BaseConnection<TClient> {
   readonly id: string;
   readonly type: string;
@@ -111,7 +123,7 @@ export abstract class BaseConnection<TClient> {
   }
 
   private recordFailure(err: Error): void {
-    this._lastError = { message: err.message, at: new Date().toISOString() };
+    this._lastError = { message: extractErrorMessage(err), at: new Date().toISOString() };
   }
 
   protected abstract attemptConnect(): Promise<TClient>;

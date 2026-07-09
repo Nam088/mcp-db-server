@@ -90,4 +90,19 @@ describe("BaseConnection", () => {
     const writable = new TestConnection(async () => "x", { readOnly: false });
     expect(writable.readOnly).toBe(false);
   });
+
+  it("extracts a useful message from an AggregateError (e.g. dual-stack ECONNREFUSED) instead of an empty string", async () => {
+    const conn = new TestConnection(async () => {
+      throw new AggregateError([new Error("connect ECONNREFUSED 127.0.0.1:59999"), new Error("connect ECONNREFUSED ::1:59999")]);
+    });
+
+    conn.start();
+    await waitUntil(() => conn.state === "failed");
+    const result = conn.getClient();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status.lastError?.message).toContain("ECONNREFUSED");
+    }
+    conn.stop();
+  });
 });
