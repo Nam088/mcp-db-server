@@ -1,0 +1,13 @@
+connections:
+  - id: primary-pg
+    type: postgres
+    connectionString: ${POSTGRES_URL}
+    readOnly: true
+  - id: reporting-pg
+    type: postgres
+    connectionString: ${REPORTING_POSTGRES_URL}
+    readOnly: true
+  - id: cache
+    type: redis
+    connectionString: ${REDIS_URL}
+    readOnly: false
