@@ -5,15 +5,14 @@ const pingMock = vi.fn();
 let lastErrorHandler: ((err: Error) => void) | undefined;
 
 vi.mock("ioredis", () => {
-  return {
-    default: vi.fn().mockImplementation(() => ({
-      connect: connectMock,
-      ping: pingMock,
-      on: (event: string, handler: (err: Error) => void) => {
-        if (event === "error") lastErrorHandler = handler;
-      },
-    })),
-  };
+  const RedisMock = vi.fn().mockImplementation(() => ({
+    connect: connectMock,
+    ping: pingMock,
+    on: (event: string, handler: (err: Error) => void) => {
+      if (event === "error") lastErrorHandler = handler;
+    },
+  }));
+  return { default: RedisMock, Redis: RedisMock };
 });
 
 const { RedisConnection } = await import("../../src/connections/redis-connection.js");

@@ -1,4 +1,4 @@
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { BaseConnection, type BaseConnectionOptions } from "./base-connection.js";
 
 export interface RedisConnectionOptions extends Omit<BaseConnectionOptions, "type"> {

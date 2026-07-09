@@ -3,13 +3,14 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("pg", () => ({
   Pool: vi.fn().mockImplementation(() => ({ query: vi.fn().mockResolvedValue({ rows: [] }), on: vi.fn() })),
 }));
-vi.mock("ioredis", () => ({
-  default: vi.fn().mockImplementation(() => ({
+vi.mock("ioredis", () => {
+  const RedisMock = vi.fn().mockImplementation(() => ({
     connect: vi.fn().mockResolvedValue(undefined),
     ping: vi.fn().mockResolvedValue("PONG"),
     on: vi.fn(),
-  })),
-}));
+  }));
+  return { default: RedisMock, Redis: RedisMock };
+});
 
 const { ConnectionRegistry } = await import("../../src/connections/registry.js");
 
