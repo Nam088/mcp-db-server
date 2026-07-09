@@ -23,6 +23,13 @@ vi.mock("@elastic/elasticsearch", () => {
   }));
   return { Client: ClientMock };
 });
+vi.mock("es7-client", () => {
+  const ClientMock = vi.fn().mockImplementation(() => ({
+    ping: vi.fn().mockResolvedValue({ body: true }),
+    close: vi.fn().mockResolvedValue(undefined),
+  }));
+  return { Client: ClientMock };
+});
 
 const loadDatabaseConfigMock = vi.fn();
 vi.mock("../../src/config/loader.js", () => ({
@@ -55,6 +62,22 @@ describe("ConnectionRegistry", () => {
     expect(registry.get("logs-es")?.type).toBe("elasticsearch");
     expect(registry.get("logs-es")?.readOnly).toBe(true);
     expect(registry.countByType("elasticsearch")).toBe(1);
+  });
+
+  it("reload() rebuilds an elasticsearch connection when only its apiVersion changes", async () => {
+    const registry = new ConnectionRegistry(
+      [{ id: "logs-es", type: "elasticsearch", connectionString: "http://x:9200", readOnly: true }],
+      "/config/databases.config.yml",
+    );
+
+    const originalConn = registry.get("logs-es");
+
+    loadDatabaseConfigMock.mockReturnValue([
+      { id: "logs-es", type: "elasticsearch", connectionString: "http://x:9200", readOnly: true, apiVersion: "7" },
+    ]);
+    await registry.reload();
+
+    expect(registry.get("logs-es")).not.toBe(originalConn);
   });
 
   it("supports multiple connections of the same type with independent readOnly modes", () => {

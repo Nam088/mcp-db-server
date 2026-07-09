@@ -8,6 +8,8 @@ export interface DatabaseConfigEntry {
   readOnly: boolean;
   defaultSchema?: string;
   statementTimeoutMs?: number;
+  /** Elasticsearch only: major version of the target server. Defaults to "9". */
+  apiVersion?: "7" | "9";
 }
 
 interface RawConnectionEntry {
@@ -17,6 +19,7 @@ interface RawConnectionEntry {
   readOnly?: boolean;
   defaultSchema?: string;
   statementTimeoutMs?: number;
+  apiVersion?: string;
 }
 
 interface RawConfigFile {
@@ -30,6 +33,12 @@ function expandEnvVars(value: string): string {
 function assertKnownType(type: string): "postgres" | "redis" | "elasticsearch" {
   if (type === "postgres" || type === "redis" || type === "elasticsearch") return type;
   throw new Error(`Unsupported database type in config: ${type}`);
+}
+
+function assertApiVersion(apiVersion: string | undefined): "7" | "9" | undefined {
+  if (apiVersion === undefined) return undefined;
+  if (apiVersion === "7" || apiVersion === "9") return apiVersion;
+  throw new Error(`Unsupported elasticsearch apiVersion in config: ${apiVersion}`);
 }
 
 function envReadOnly(varName: string): boolean {
@@ -47,6 +56,7 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       readOnly: entry.readOnly ?? true,
       defaultSchema: entry.defaultSchema,
       statementTimeoutMs: entry.statementTimeoutMs,
+      apiVersion: assertApiVersion(entry.apiVersion),
     }));
   }
 
@@ -77,6 +87,7 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       type: "elasticsearch",
       connectionString: process.env.ELASTICSEARCH_URL,
       readOnly: envReadOnly("ELASTICSEARCH_READ_ONLY"),
+      apiVersion: assertApiVersion(process.env.ELASTICSEARCH_API_VERSION),
     });
   }
   return entries;

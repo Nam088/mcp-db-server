@@ -12,7 +12,8 @@ function entriesEqual(a: DatabaseConfigEntry, b: DatabaseConfigEntry): boolean {
     a.connectionString === b.connectionString &&
     a.readOnly === b.readOnly &&
     a.defaultSchema === b.defaultSchema &&
-    a.statementTimeoutMs === b.statementTimeoutMs
+    a.statementTimeoutMs === b.statementTimeoutMs &&
+    a.apiVersion === b.apiVersion
   );
 }
 
@@ -45,6 +46,7 @@ export class ConnectionRegistry {
         id: entry.id,
         connectionString: entry.connectionString,
         readOnly: entry.readOnly,
+        apiVersion: entry.apiVersion,
       });
     }
     return new RedisConnection({ id: entry.id, connectionString: entry.connectionString, readOnly: entry.readOnly });

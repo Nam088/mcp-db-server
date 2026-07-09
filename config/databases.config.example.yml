@@ -16,3 +16,8 @@ connections:
     type: elasticsearch
     connectionString: ${ELASTICSEARCH_URL}
     readOnly: true
+  - id: legacy-es
+    type: elasticsearch
+    connectionString: ${LEGACY_ELASTICSEARCH_URL}
+    apiVersion: "7" # Talks to an Elasticsearch 7.x cluster via a separate v7 client
+    readOnly: true

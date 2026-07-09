@@ -36,9 +36,18 @@ connections:
     type: elasticsearch
     connectionString: ${ELASTICSEARCH_URL}
     readOnly: true
+  - id: legacy-es
+    type: elasticsearch
+    connectionString: ${LEGACY_ELASTICSEARCH_URL}
+    apiVersion: "7" # Talks to an Elasticsearch 7.x cluster via a separate v7 client
+    readOnly: true
 ```
 
 Redis tools that can return an unbounded amount of data (`redis_keys`, `redis_smembers`, `redis_lrange`) are capped at 1000 items; past that, the result is wrapped as `{ items, truncated: true, returned, total }` instead of a plain array.
+
+### Elasticsearch: mixing server major versions
+
+Elastic's client only guarantees compatibility with the same major version of the server. `@elastic/elasticsearch` (v9) is used by default; set `apiVersion: "7"` on a connection to talk to an Elasticsearch 7.x cluster instead, which routes that connection through a separately installed v7 client (`es7-client`, an npm alias for `@elastic/elasticsearch@^7`). Both can be configured at once, each connection picks its own client internally, and the `es_*` tools work identically regardless of which version backs a given `connectionId`.
 
 Or, for a single connection of each type, skip the config file and use env vars:
 
@@ -49,6 +58,7 @@ ELASTICSEARCH_URL=http://localhost:9200
 POSTGRES_READ_ONLY=true
 REDIS_READ_ONLY=true
 ELASTICSEARCH_READ_ONLY=true
+ELASTICSEARCH_API_VERSION=9
 POSTGRES_DEFAULT_SCHEMA=public
 POSTGRES_STATEMENT_TIMEOUT_MS=30000
 ```

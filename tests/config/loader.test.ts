@@ -14,6 +14,7 @@ afterEach(() => {
   delete process.env.POSTGRES_READ_ONLY;
   delete process.env.REDIS_READ_ONLY;
   delete process.env.ELASTICSEARCH_READ_ONLY;
+  delete process.env.ELASTICSEARCH_API_VERSION;
   delete process.env.TEST_PG_URL;
 });
 
@@ -109,6 +110,57 @@ describe("loadDatabaseConfig", () => {
     );
 
     expect(() => loadDatabaseConfig(tmpConfigPath)).toThrow(/Unsupported database type/);
+  });
+
+  it("reads a per-connection elasticsearch apiVersion from a config file", () => {
+    writeFileSync(
+      tmpConfigPath,
+      [
+        "connections:",
+        "  - id: legacy-es",
+        "    type: elasticsearch",
+        "    connectionString: http://localhost:9200",
+        '    apiVersion: "7"',
+      ].join("\n"),
+    );
+
+    const entries = loadDatabaseConfig(tmpConfigPath);
+    expect(entries[0].apiVersion).toBe("7");
+  });
+
+  it("leaves elasticsearch apiVersion undefined in a config file when omitted (ElasticsearchConnection defaults it to 9)", () => {
+    writeFileSync(
+      tmpConfigPath,
+      ["connections:", "  - id: logs-es", "    type: elasticsearch", "    connectionString: http://localhost:9200"].join(
+        "\n",
+      ),
+    );
+
+    const entries = loadDatabaseConfig(tmpConfigPath);
+    expect(entries[0].apiVersion).toBeUndefined();
+  });
+
+  it("throws for an unsupported elasticsearch apiVersion in a config file", () => {
+    writeFileSync(
+      tmpConfigPath,
+      [
+        "connections:",
+        "  - id: logs-es",
+        "    type: elasticsearch",
+        "    connectionString: http://localhost:9200",
+        '    apiVersion: "8"',
+      ].join("\n"),
+    );
+
+    expect(() => loadDatabaseConfig(tmpConfigPath)).toThrow(/Unsupported elasticsearch apiVersion/);
+  });
+
+  it("reads ELASTICSEARCH_API_VERSION when falling back to env vars", () => {
+    process.env.ELASTICSEARCH_URL = "http://localhost:9200";
+    process.env.ELASTICSEARCH_API_VERSION = "7";
+
+    const entries = loadDatabaseConfig(join(tmpdir(), "does-not-exist.yml"));
+    expect(entries[0].apiVersion).toBe("7");
   });
 
   it("returns an empty list when no config file and no env vars are present", () => {

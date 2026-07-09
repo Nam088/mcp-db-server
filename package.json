@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.4.2",
+    "es7-client": "npm:@elastic/elasticsearch@^7.17.14",
     "cockatiel": "^4.0.0",
     "fastmcp": "^4.4.0",
     "ioredis": "^5.11.1",
