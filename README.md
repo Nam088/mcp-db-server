@@ -37,17 +37,17 @@ Built with resilience in mind, it features background lazy connection management
 
 ### 1. Installation & Optional Drivers
 
-Install `mcp-server-db` globally or as a project dependency:
+When installed globally (`npm install -g mcp-server-db`) or run via `npx -y mcp-server-db`, npm automatically includes all supported database drivers (`pg`, `ioredis`, `@elastic/elasticsearch`, `mysql2`, `mongodb`) out of the box via `optionalDependencies`.
 
 ```bash
-# Global installation
+# Global installation (includes all drivers out of the box)
 npm install -g mcp-server-db
 
 # Local project installation
 npm install mcp-server-db
 ```
 
-`mcp-server-db` loads database drivers dynamically on demand. Install only the drivers for the databases you use:
+If you install `mcp-server-db` locally using `--no-optional` to keep your `node_modules` lightweight, you can install only the specific drivers you need:
 
 ```bash
 # PostgreSQL
@@ -65,9 +65,6 @@ npm install mysql2
 
 # MongoDB
 npm install mongodb
-
-# Install all drivers at once
-npm install pg ioredis @elastic/elasticsearch mysql2 mongodb
 ```
 
 ### 2. Zero-Install Execution via NPX
