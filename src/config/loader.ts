@@ -3,13 +3,14 @@ import { parse } from "yaml";
 
 export interface DatabaseConfigEntry {
   id: string;
-  type: "postgres" | "redis" | "elasticsearch";
+  type: "postgres" | "redis" | "elasticsearch" | "mysql" | "mongodb";
   connectionString: string;
   readOnly: boolean;
   defaultSchema?: string;
+  defaultDatabase?: string;
   statementTimeoutMs?: number;
-  /** Elasticsearch only: major version of the target server. Defaults to "9". */
-  apiVersion?: "7" | "9";
+  /** Elasticsearch only: major version of the target server. Defaults to "9" (supports 8.x and 9.x). */
+  apiVersion?: "7" | "8" | "9";
 }
 
 interface RawConnectionEntry {
@@ -18,6 +19,7 @@ interface RawConnectionEntry {
   connectionString: string;
   readOnly?: boolean;
   defaultSchema?: string;
+  defaultDatabase?: string;
   statementTimeoutMs?: number;
   apiVersion?: string;
 }
@@ -30,14 +32,16 @@ function expandEnvVars(value: string): string {
   return value.replace(/\$\{([A-Z0-9_]+)\}/g, (_match, name: string) => process.env[name] ?? "");
 }
 
-function assertKnownType(type: string): "postgres" | "redis" | "elasticsearch" {
-  if (type === "postgres" || type === "redis" || type === "elasticsearch") return type;
+function assertKnownType(type: string): "postgres" | "redis" | "elasticsearch" | "mysql" | "mongodb" {
+  if (type === "postgres" || type === "redis" || type === "elasticsearch" || type === "mysql" || type === "mongodb") {
+    return type;
+  }
   throw new Error(`Unsupported database type in config: ${type}`);
 }
 
-function assertApiVersion(apiVersion: string | undefined): "7" | "9" | undefined {
+function assertApiVersion(apiVersion: string | undefined): "7" | "8" | "9" | undefined {
   if (apiVersion === undefined) return undefined;
-  if (apiVersion === "7" || apiVersion === "9") return apiVersion;
+  if (apiVersion === "7" || apiVersion === "8" || apiVersion === "9") return apiVersion;
   throw new Error(`Unsupported elasticsearch apiVersion in config: ${apiVersion}`);
 }
 
@@ -55,6 +59,7 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       connectionString: expandEnvVars(entry.connectionString),
       readOnly: entry.readOnly ?? true,
       defaultSchema: entry.defaultSchema,
+      defaultDatabase: entry.defaultDatabase,
       statementTimeoutMs: entry.statementTimeoutMs,
       apiVersion: assertApiVersion(entry.apiVersion),
     }));
@@ -88,6 +93,26 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       connectionString: process.env.ELASTICSEARCH_URL,
       readOnly: envReadOnly("ELASTICSEARCH_READ_ONLY"),
       apiVersion: assertApiVersion(process.env.ELASTICSEARCH_API_VERSION),
+    });
+  }
+  if (process.env.MYSQL_URL) {
+    entries.push({
+      id: "mysql",
+      type: "mysql",
+      connectionString: process.env.MYSQL_URL,
+      readOnly: envReadOnly("MYSQL_READ_ONLY"),
+      statementTimeoutMs: process.env.MYSQL_STATEMENT_TIMEOUT_MS
+        ? Number(process.env.MYSQL_STATEMENT_TIMEOUT_MS)
+        : undefined,
+    });
+  }
+  if (process.env.MONGODB_URL) {
+    entries.push({
+      id: "mongodb",
+      type: "mongodb",
+      connectionString: process.env.MONGODB_URL,
+      readOnly: envReadOnly("MONGODB_READ_ONLY"),
+      defaultDatabase: process.env.MONGODB_DEFAULT_DATABASE,
     });
   }
   return entries;

@@ -106,7 +106,7 @@ describe("loadDatabaseConfig", () => {
   it("throws for an unsupported database type in a config file", () => {
     writeFileSync(
       tmpConfigPath,
-      ["connections:", "  - id: mongo", "    type: mongodb", "    connectionString: mongodb://x"].join("\n"),
+      ["connections:", "  - id: couch", "    type: couchdb", "    connectionString: couchdb://x"].join("\n"),
     );
 
     expect(() => loadDatabaseConfig(tmpConfigPath)).toThrow(/Unsupported database type/);
@@ -148,7 +148,7 @@ describe("loadDatabaseConfig", () => {
         "  - id: logs-es",
         "    type: elasticsearch",
         "    connectionString: http://localhost:9200",
-        '    apiVersion: "8"',
+        '    apiVersion: "99"',
       ].join("\n"),
     );
 

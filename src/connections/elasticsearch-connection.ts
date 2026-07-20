@@ -1,8 +1,6 @@
-import { Client as ClientV9 } from "@elastic/elasticsearch";
-import { Client as ClientV7 } from "es7-client";
 import { BaseConnection, type BaseConnectionOptions } from "./base-connection.js";
 
-export type ElasticsearchApiVersion = "7" | "9";
+export type ElasticsearchApiVersion = "7" | "8" | "9";
 
 /**
  * Normalized facade over either client major version. v7 nests search/index/update/count/
@@ -78,10 +76,27 @@ export class ElasticsearchConnection extends BaseConnection<ElasticsearchClient>
 
   protected async attemptConnect(): Promise<ElasticsearchClient> {
     if (this.apiVersion === "7") {
+      let esV7Module: any;
+      try {
+        esV7Module = await import("es7-client");
+      } catch {
+        throw new Error("Elasticsearch v7 driver 'es7-client' is not installed. Please run 'npm install es7-client'.");
+      }
+      const ClientV7 = esV7Module.Client ?? esV7Module.default?.Client;
       const raw = new ClientV7({ node: this.connectionString });
       await raw.ping();
       return wrapV7Client(raw);
     }
+
+    let esV9Module: any;
+    try {
+      esV9Module = await import("@elastic/elasticsearch");
+    } catch {
+      throw new Error(
+        "Elasticsearch driver '@elastic/elasticsearch' is not installed. Please run 'npm install @elastic/elasticsearch'.",
+      );
+    }
+    const ClientV9 = esV9Module.Client ?? esV9Module.default?.Client;
     const raw = new ClientV9({ node: this.connectionString });
     await raw.ping();
     return wrapV9Client(raw);

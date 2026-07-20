@@ -1,4 +1,4 @@
-import { Redis } from "ioredis";
+import type { Redis } from "ioredis";
 import { BaseConnection, type BaseConnectionOptions } from "./base-connection.js";
 
 export interface RedisConnectionOptions extends Omit<BaseConnectionOptions, "type"> {
@@ -14,9 +14,18 @@ export class RedisConnection extends BaseConnection<Redis> {
   }
 
   protected async attemptConnect(): Promise<Redis> {
+    let redisModule: any;
+    try {
+      redisModule = await import("ioredis");
+    } catch {
+      throw new Error("Redis driver 'ioredis' is not installed. Please run 'npm install ioredis'.");
+    }
+
+    const RedisConstructor = redisModule.default ?? redisModule.Redis ?? redisModule;
+
     // lazyConnect: we drive connect() ourselves below.
     // retryStrategy disabled: BaseConnection owns retry/backoff, avoiding two competing retry loops.
-    const client = new Redis(this.connectionString, {
+    const client = new RedisConstructor(this.connectionString, {
       lazyConnect: true,
       retryStrategy: () => null,
     });

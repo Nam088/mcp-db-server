@@ -1,29 +1,58 @@
 {
-  "name": "mcp-database-server",
+  "name": "mcp-server-db",
   "version": "0.1.0",
-  "description": "MCP server exposing Postgres, Redis, and Elasticsearch as tools, with lazy connection management, retry, circuit breaking, and per-connection read-only mode.",
+  "description": "MCP server exposing Postgres, Redis, Elasticsearch, MySQL, and MongoDB as tools, with lazy connection management, retry, circuit breaking, per-connection read-only mode, and optional database drivers.",
   "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "postgres",
+    "redis",
+    "elasticsearch",
+    "mysql",
+    "mongodb",
+    "database",
+    "db"
+  ],
   "engines": {
     "node": ">=18.18"
   },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
-    "mcp-database-server": "dist/index.js"
+    "mcp-server-db": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "config/databases.config.example.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && npm test"
   },
   "dependencies": {
-    "@elastic/elasticsearch": "^9.4.2",
-    "es7-client": "npm:@elastic/elasticsearch@^7.17.14",
     "cockatiel": "^4.0.0",
     "fastmcp": "^4.4.0",
-    "ioredis": "^5.11.1",
-    "pg": "^8.22.0",
     "yaml": "^2.9.0",
     "zod": "^3.23.8"
+  },
+  "optionalDependencies": {
+    "@elastic/elasticsearch": "^9.4.2",
+    "es7-client": "npm:@elastic/elasticsearch@^7.17.14",
+    "ioredis": "^5.11.1",
+    "mongodb": "^7.5.0",
+    "mysql2": "^3.23.1",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -1,10 +1,12 @@
 import { PostgresConnection } from "./postgres-connection.js";
 import { RedisConnection } from "./redis-connection.js";
 import { ElasticsearchConnection } from "./elasticsearch-connection.js";
+import { MySqlConnection } from "./mysql-connection.js";
+import { MongoDbConnection } from "./mongodb-connection.js";
 import { loadDatabaseConfig, type DatabaseConfigEntry } from "../config/loader.js";
 import type { ConnectionStatus } from "./types.js";
 
-export type AnyConnection = PostgresConnection | RedisConnection | ElasticsearchConnection;
+export type AnyConnection = PostgresConnection | RedisConnection | ElasticsearchConnection | MySqlConnection | MongoDbConnection;
 
 function entriesEqual(a: DatabaseConfigEntry, b: DatabaseConfigEntry): boolean {
   return (
@@ -12,6 +14,7 @@ function entriesEqual(a: DatabaseConfigEntry, b: DatabaseConfigEntry): boolean {
     a.connectionString === b.connectionString &&
     a.readOnly === b.readOnly &&
     a.defaultSchema === b.defaultSchema &&
+    a.defaultDatabase === b.defaultDatabase &&
     a.statementTimeoutMs === b.statementTimeoutMs &&
     a.apiVersion === b.apiVersion
   );
@@ -49,11 +52,33 @@ export class ConnectionRegistry {
         apiVersion: entry.apiVersion,
       });
     }
+    if (entry.type === "mysql") {
+      return new MySqlConnection({
+        id: entry.id,
+        connectionString: entry.connectionString,
+        readOnly: entry.readOnly,
+        statementTimeoutMs: entry.statementTimeoutMs,
+      });
+    }
+    if (entry.type === "mongodb") {
+      return new MongoDbConnection({
+        id: entry.id,
+        connectionString: entry.connectionString,
+        readOnly: entry.readOnly,
+        defaultDatabase: entry.defaultDatabase,
+      });
+    }
     return new RedisConnection({ id: entry.id, connectionString: entry.connectionString, readOnly: entry.readOnly });
   }
 
   startAll(): void {
     for (const conn of this.connections.values()) conn.start();
+  }
+
+  async closeAll(): Promise<void> {
+    for (const conn of this.connections.values()) {
+      await conn.stop();
+    }
   }
 
   /**

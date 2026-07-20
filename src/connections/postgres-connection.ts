@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import type { Pool } from "pg";
 import { BaseConnection, type BaseConnectionOptions } from "./base-connection.js";
 
 export interface PostgresConnectionOptions extends Omit<BaseConnectionOptions, "type"> {
@@ -22,12 +22,16 @@ export class PostgresConnection extends BaseConnection<Pool> {
   }
 
   protected async attemptConnect(): Promise<Pool> {
-    // Set via the startup packet ("-c") so it's applied by Postgres itself to every
-    // physical connection the pool opens, with no race between connecting and a tool
-    // call reusing that connection. default_transaction_read_only is Postgres's own
-    // guardrail: a readOnly connection can't be made to write no matter which tool
-    // (or raw SQL string) is used against it. statement_timeout caps a runaway query
-    // so it can't hold a pool connection (and, on a small pool, the whole server) hostage.
+    let pgModule;
+    try {
+      pgModule = await import("pg");
+    } catch {
+      throw new Error("Postgres driver 'pg' is not installed. Please run 'npm install pg'.");
+    }
+
+    const pg = pgModule.default ?? pgModule;
+    const Pool = pg.Pool ?? pgModule.Pool;
+
     const sessionOptions = [
       `-c statement_timeout=${this.statementTimeoutMs}`,
       ...(this.readOnly ? ["-c default_transaction_read_only=on"] : []),

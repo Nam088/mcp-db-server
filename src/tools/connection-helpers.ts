@@ -3,8 +3,10 @@ import type { ConnectionStatus } from "../connections/types.js";
 import type { PostgresConnection } from "../connections/postgres-connection.js";
 import type { RedisConnection } from "../connections/redis-connection.js";
 import type { ElasticsearchConnection } from "../connections/elasticsearch-connection.js";
+import type { MySqlConnection } from "../connections/mysql-connection.js";
+import type { MongoDbConnection } from "../connections/mongodb-connection.js";
 
-type AnyConnection = PostgresConnection | RedisConnection | ElasticsearchConnection;
+type AnyConnection = PostgresConnection | RedisConnection | ElasticsearchConnection | MySqlConnection | MongoDbConnection;
 
 interface RegistryLike {
   get(id: string): AnyConnection | undefined;
@@ -15,9 +17,11 @@ interface RegistryLike {
 export function resolveConnection(registry: RegistryLike, type: "postgres", connectionId?: string): PostgresConnection;
 export function resolveConnection(registry: RegistryLike, type: "redis", connectionId?: string): RedisConnection;
 export function resolveConnection(registry: RegistryLike, type: "elasticsearch", connectionId?: string): ElasticsearchConnection;
+export function resolveConnection(registry: RegistryLike, type: "mysql", connectionId?: string): MySqlConnection;
+export function resolveConnection(registry: RegistryLike, type: "mongodb", connectionId?: string): MongoDbConnection;
 export function resolveConnection(
   registry: RegistryLike,
-  type: "postgres" | "redis" | "elasticsearch",
+  type: "postgres" | "redis" | "elasticsearch" | "mysql" | "mongodb",
   connectionId?: string,
 ): AnyConnection {
   const conn = connectionId ? registry.get(connectionId) : registry.findOneByType(type);
@@ -49,3 +53,4 @@ export function requireWritable(conn: { id: string; readOnly: boolean }): void {
 export function throwUnavailable(status: ConnectionStatus): never {
   throw new UserError(JSON.stringify({ error: "connection_unavailable", ...status }));
 }
+

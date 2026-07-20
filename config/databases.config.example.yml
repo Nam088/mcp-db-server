@@ -21,3 +21,13 @@ connections:
     connectionString: ${LEGACY_ELASTICSEARCH_URL}
     apiVersion: "7" # Talks to an Elasticsearch 7.x cluster via a separate v7 client
     readOnly: true
+  - id: main-mysql
+    type: mysql
+    connectionString: ${MYSQL_URL}
+    statementTimeoutMs: 30000
+    readOnly: true
+  - id: app-mongo
+    type: mongodb
+    connectionString: ${MONGODB_URL}
+    defaultDatabase: mydatabase
+    readOnly: true

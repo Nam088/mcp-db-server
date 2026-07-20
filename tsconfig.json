@@ -11,6 +11,8 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
     "noUncheckedIndexedAccess": true
   },
   "include": ["src/**/*"],
