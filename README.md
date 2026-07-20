@@ -35,7 +35,42 @@ Built with resilience in mind, it features background lazy connection management
 
 ## Quick Start
 
-### 1. Zero-Install Execution via NPX
+### 1. Installation & Optional Drivers
+
+Install `mcp-server-db` globally or as a project dependency:
+
+```bash
+# Global installation
+npm install -g mcp-server-db
+
+# Local project installation
+npm install mcp-server-db
+```
+
+`mcp-server-db` loads database drivers dynamically on demand. Install only the drivers for the databases you use:
+
+```bash
+# PostgreSQL
+npm install pg
+
+# Redis
+npm install ioredis
+
+# Elasticsearch
+npm install @elastic/elasticsearch   # For v8 & v9
+npm install es7-client               # For v7 legacy
+
+# MySQL / MariaDB
+npm install mysql2
+
+# MongoDB
+npm install mongodb
+
+# Install all drivers at once
+npm install pg ioredis @elastic/elasticsearch mysql2 mongodb
+```
+
+### 2. Zero-Install Execution via NPX
 
 Add `mcp-server-db` directly to your MCP client config file (e.g. Claude Desktop, Claude Code, Gemini CLI, Cursor):
 
@@ -56,7 +91,7 @@ Add `mcp-server-db` directly to your MCP client config file (e.g. Claude Desktop
 }
 ```
 
-### 2. Fast Setup with Environment Variables
+### 3. Fast Setup with Environment Variables
 
 Define connection strings in `env` to start immediately without a configuration file:
 
