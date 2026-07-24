@@ -21,6 +21,8 @@ export interface ElasticsearchClient {
   update(params: { index: string; id: string; doc: unknown }): Promise<any>;
   delete(params: { index: string; id: string }): Promise<any>;
   deleteByQuery(params: { index: string; query: unknown }): Promise<any>;
+  /** `operations` alternates action-metadata objects (e.g. `{ index: { _id? } }`) and their document bodies, per the ES bulk API. */
+  bulk(params: { operations: unknown[] }): Promise<any>;
 }
 
 function wrapV7Client(raw: any): ElasticsearchClient {
@@ -38,6 +40,7 @@ function wrapV7Client(raw: any): ElasticsearchClient {
     update: ({ index, id, doc }) => unwrap(raw.update({ index, id, body: { doc } })),
     delete: (params) => unwrap(raw.delete(params)),
     deleteByQuery: ({ index, query }) => unwrap(raw.deleteByQuery({ index, body: { query } })),
+    bulk: ({ operations }) => unwrap(raw.bulk({ body: operations })),
   };
 }
 
@@ -55,6 +58,7 @@ function wrapV9Client(raw: any): ElasticsearchClient {
     update: (params) => raw.update(params),
     delete: (params) => raw.delete(params),
     deleteByQuery: (params) => raw.deleteByQuery(params),
+    bulk: (params) => raw.bulk(params),
   };
 }
 

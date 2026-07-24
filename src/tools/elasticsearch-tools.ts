@@ -122,6 +122,57 @@ export function registerElasticsearchTools(server: FastMCP, registry: Connection
   });
 
   server.addTool({
+    name: "es_bulk_index",
+    description:
+      "Index (create or overwrite) multiple documents into one index in a single request via the Elasticsearch _bulk API (e.g. for seeding test/sample data) — far more efficient than one es_index_doc call per document. Reports per-document success/failure rather than aborting the whole batch on one bad document. Blocked when that connection's own readOnly mode is enabled.",
+    parameters: z.object({
+      index: indexParam,
+      documents: z
+        .string()
+        .describe(
+          'JSON array of documents to index. Each item may include an "_id" key to set the document id explicitly (removed before indexing); otherwise Elasticsearch auto-generates one. E.g. \'[{"_id":"1","title":"foo"},{"title":"bar"}]\'',
+        ),
+      connectionId: connectionIdParam,
+    }),
+    execute: async ({ index, documents, connectionId }) => {
+      const conn = resolveConnection(registry, "elasticsearch", connectionId);
+      requireWritable(conn);
+      const result = await conn.getClient();
+      if (!result.ok) throwUnavailable(result.status);
+
+      const parsedDocs = JSON.parse(documents) as Array<Record<string, unknown> & { _id?: string }>;
+      if (parsedDocs.length === 0) {
+        return JSON.stringify({ total: 0, succeeded: 0, failed: 0, results: [] });
+      }
+
+      const operations: unknown[] = [];
+      for (const doc of parsedDocs) {
+        const { _id, ...rest } = doc;
+        operations.push({ index: _id ? { _index: index, _id } : { _index: index } });
+        operations.push(rest);
+      }
+
+      const response = await result.client.bulk({ operations });
+      const items = (response.items ?? []) as Array<Record<string, { _id?: string; error?: unknown; status?: number }>>;
+      const results = items.map((item) => {
+        const action = item.index ?? Object.values(item)[0];
+        const failed = Boolean(action?.error);
+        return failed
+          ? { id: action?._id, success: false, error: JSON.stringify(action?.error) }
+          : { id: action?._id, success: true };
+      });
+      const succeeded = results.filter((r) => r.success).length;
+
+      return JSON.stringify({
+        total: results.length,
+        succeeded,
+        failed: results.length - succeeded,
+        results,
+      });
+    },
+  });
+
+  server.addTool({
     name: "es_update_doc",
     description: "Partially update a document by id. Blocked when that connection's own readOnly mode is enabled.",
     parameters: z.object({

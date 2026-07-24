@@ -5,7 +5,7 @@
 [![node](https://img.shields.io/node/v/mcp-server-db.svg)](https://nodejs.org)
 [![types](https://img.shields.io/npm/types/mcp-server-db.svg)](https://www.typescriptlang.org)
 
-**mcp-server-db** is a universal, production-grade Model Context Protocol (MCP) server that empowers AI assistants to interact with **Postgres, Redis, Elasticsearch, MySQL, and MongoDB** through a unified suite of **105+ high-performance tools**.
+**mcp-server-db** is a universal, production-grade Model Context Protocol (MCP) server that empowers AI assistants to interact with **Postgres, Redis, Elasticsearch, MySQL, MongoDB, and LDAP** through a unified suite of **113+ high-performance tools**.
 
 Built with resilience in mind, it features background lazy connection management, exponential backoff retries, circuit breaker patterns, strict read-only security enforcement, and on-demand dynamic driver loading.
 
@@ -13,8 +13,8 @@ Built with resilience in mind, it features background lazy connection management
 
 ## Why mcp-server-db?
 
-- **Multi-Database Support**: Connect to Postgres, Redis, Elasticsearch (v7, v8 & v9), MySQL, and MongoDB simultaneously.
-- **On-Demand Light Drivers**: Zero bloat. Drivers (`pg`, `ioredis`, `mongodb`, `mysql2`, `@elastic/elasticsearch`) are dynamically loaded only when a connection to that database engine is initialized.
+- **Multi-Database Support**: Connect to Postgres, Redis, Elasticsearch (v7, v8 & v9), MySQL, MongoDB, and LDAP directories simultaneously.
+- **On-Demand Light Drivers**: Zero bloat. Drivers (`pg`, `ioredis`, `mongodb`, `mysql2`, `@elastic/elasticsearch`, `ldapts`) are dynamically loaded only when a connection to that database engine is initialized.
 - **Ironclad Safety**: Independent per-connection read-only mode with session-level enforcement for relational databases and query result truncation guards to prevent LLM context overflows.
 - **Fault-Tolerant Architecture**: Server starts instantly regardless of database availability. Dead or unreachable databases fail gracefully without crashing the MCP process or blocking other connections.
 - **Multi-Connection Routing**: Query multiple environments (e.g., production read-only replica + local scratch cache) in parallel within the same session.
@@ -30,6 +30,7 @@ Built with resilience in mind, it features background lazy connection management
 | **Elasticsearch** | `@elastic/elasticsearch` / `es7-client` | 7.x, 8.x, 9.x | Dual-API version facade (v7 legacy & v8/v9 modern), Cluster health, Query DSL |
 | **MySQL / MariaDB** | `mysql2` (optional) | 5.7+, 8.0+ | DDL extraction (`SHOW CREATE`), Processlist management, Indexes & Triggers, Session read-only |
 | **MongoDB** | `mongodb` (optional) | 4.4+ | Aggregation pipelines, Distinct queries, Index management, Execution plan explain |
+| **LDAP** | `ldapts` (optional) | v3 directories (OpenLDAP, AD, etc.) | Search/compare, Add/modify/delete entries, Bulk entry seeding |
 
 ---
 
@@ -37,7 +38,7 @@ Built with resilience in mind, it features background lazy connection management
 
 ### 1. Installation & Optional Drivers
 
-When installed globally (`npm install -g mcp-server-db`) or run via `npx -y mcp-server-db`, npm automatically includes all supported database drivers (`pg`, `ioredis`, `@elastic/elasticsearch`, `mysql2`, `mongodb`) out of the box via `optionalDependencies`.
+When installed globally (`npm install -g mcp-server-db`) or run via `npx -y mcp-server-db`, npm automatically includes all supported database drivers (`pg`, `ioredis`, `@elastic/elasticsearch`, `mysql2`, `mongodb`, `ldapts`) out of the box via `optionalDependencies`.
 
 ```bash
 # Global installation (includes all drivers out of the box)
@@ -65,6 +66,9 @@ npm install mysql2
 
 # MongoDB
 npm install mongodb
+
+# LDAP
+npm install ldapts
 ```
 
 ### 2. Zero-Install Execution via NPX
@@ -81,7 +85,10 @@ Add `mcp-server-db` directly to your MCP client config file (e.g. Claude Desktop
       "env": {
         "POSTGRES_URL": "postgresql://user:password@localhost:5432/mydb",
         "REDIS_URL": "redis://localhost:6379",
-        "MONGODB_URL": "mongodb://localhost:27017"
+        "MONGODB_URL": "mongodb://localhost:27017",
+        "LDAP_URL": "ldap://localhost:389",
+        "LDAP_BIND_DN": "cn=admin,dc=example,dc=com",
+        "LDAP_BIND_PASSWORD": "admin-password"
       }
     }
   }
@@ -98,15 +105,19 @@ REDIS_URL=redis://localhost:6379
 ELASTICSEARCH_URL=http://localhost:9200
 MYSQL_URL=mysql://user:password@localhost:3306/mydb
 MONGODB_URL=mongodb://localhost:27017
+LDAP_URL=ldap://localhost:389
+LDAP_BIND_DN=cn=admin,dc=example,dc=com
+LDAP_BIND_PASSWORD=admin-password
 POSTGRES_READ_ONLY=true
 REDIS_READ_ONLY=true
 MYSQL_READ_ONLY=true
 MONGODB_READ_ONLY=true
+LDAP_READ_ONLY=true
 ```
 
 ---
 
-## Complete Tools Reference (105 Tools)
+## Complete Tools Reference (113 Tools)
 
 ### System & Management Tools (2)
 
@@ -146,10 +157,11 @@ MONGODB_READ_ONLY=true
 - `pg_missing_indexes`: Identify high-sequential-scan tables needing indexes.
 - `pg_bloat_estimate`: Estimate table bloat ratio based on dead tuple count.
 
-### Redis Tools (26)
+### Redis Tools (27)
 
 - `redis_get`: Get string value at key.
 - `redis_set`: Set key value. Blocked in read-only mode.
+- `redis_mset`: Set multiple key/value pairs in a single command (e.g. for seeding). Blocked in read-only mode.
 - `redis_del`: Delete key. Blocked in read-only mode.
 - `redis_keys`: List keys matching a glob pattern (capped at 1000 items).
 - `redis_ttl`: Get remaining TTL in seconds.
@@ -175,7 +187,7 @@ MONGODB_READ_ONLY=true
 - `redis_decr`: Decrement integer key. Blocked in read-only mode.
 - `redis_flushdb`: Clear current Redis database. Blocked in read-only mode.
 
-### Elasticsearch Tools (10)
+### Elasticsearch Tools (11)
 
 - `es_cluster_health`: Get status (green/yellow/red), node counts, and shard metrics.
 - `es_list_indices`: List indices, doc counts, store size, and status.
@@ -184,6 +196,7 @@ MONGODB_READ_ONLY=true
 - `es_count`: Count documents matching a query.
 - `es_get_doc`: Fetch document by ID.
 - `es_index_doc`: Index or overwrite document. Blocked in read-only mode.
+- `es_bulk_index`: Index multiple documents into one index in a single `_bulk` request, with per-document success/failure reporting (e.g. for seeding). Blocked in read-only mode.
 - `es_update_doc`: Partially update document fields. Blocked in read-only mode.
 - `es_delete_doc`: Delete document by ID. Blocked in read-only mode.
 - `es_delete_by_query`: Delete documents matching Query DSL. Blocked in read-only mode.
@@ -231,6 +244,15 @@ MONGODB_READ_ONLY=true
 - `mongo_explain`: Get query planner execution plan and index scan metrics.
 - `mongo_server_status`: Get cluster memory, connection, and operation stats.
 
+### LDAP Tools (6)
+
+- `ldap_search`: Search a directory by base DN, filter, and scope (capped at 500 entries).
+- `ldap_compare`: Compare an attribute/value pair against an entry.
+- `ldap_add`: Create a new entry. Blocked in read-only mode.
+- `ldap_add_bulk`: Create multiple entries in one call (e.g. for seeding), with per-entry success/failure reporting. Blocked in read-only mode.
+- `ldap_modify`: Add, replace, or delete an attribute's values on an entry. Blocked in read-only mode.
+- `ldap_delete`: Delete an entry. Blocked in read-only mode.
+
 ---
 
 ## Multi-Connection YAML Configuration
@@ -274,6 +296,13 @@ connections:
     connectionString: ${MONGODB_URL}
     defaultDatabase: production
     readOnly: true
+
+  - id: directory
+    type: ldap
+    connectionString: ${LDAP_URL}
+    bindDn: ${LDAP_BIND_DN}
+    bindPassword: ${LDAP_BIND_PASSWORD}
+    readOnly: false
 ```
 
 ---

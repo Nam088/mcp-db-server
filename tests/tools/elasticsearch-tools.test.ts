@@ -121,6 +121,86 @@ describe("elasticsearch tools", () => {
     expect(JSON.parse(result).result).toBe("created");
   });
 
+  it("es_bulk_index refuses to run when the resolved connection's readOnly is true", async () => {
+    const server = new FakeServer();
+    registerElasticsearchTools(server as never, makeFakeRegistry(true, { ok: true, client: {} }) as never);
+
+    await expect(
+      server.tools.es_bulk_index.execute({ index: "logs-1", documents: '[{"a":1}]' } as never),
+    ).rejects.toThrow(/READ_ONLY/);
+  });
+
+  it("es_bulk_index is a no-op and does not call bulk when documents is an empty array", async () => {
+    const bulkCalls: unknown[] = [];
+    const client = { bulk: async (args: unknown) => bulkCalls.push(args) };
+    const server = new FakeServer();
+    registerElasticsearchTools(server as never, makeFakeRegistry(false, { ok: true, client }) as never);
+
+    const result = await server.tools.es_bulk_index.execute({ index: "logs-1", documents: "[]" } as never);
+
+    expect(JSON.parse(result)).toEqual({ total: 0, succeeded: 0, failed: 0, results: [] });
+    expect(bulkCalls).toHaveLength(0);
+  });
+
+  it("es_bulk_index builds alternating action/document operations, honoring an explicit _id", async () => {
+    let receivedOperations: unknown[] = [];
+    const client = {
+      bulk: async (args: { operations: unknown[] }) => {
+        receivedOperations = args.operations;
+        return {
+          errors: false,
+          items: [{ index: { _id: "1", status: 201 } }, { index: { _id: "auto-2", status: 201 } }],
+        };
+      },
+    };
+    const server = new FakeServer();
+    registerElasticsearchTools(server as never, makeFakeRegistry(false, { ok: true, client }) as never);
+
+    const result = await server.tools.es_bulk_index.execute({
+      index: "logs-1",
+      documents: JSON.stringify([{ _id: "1", title: "foo" }, { title: "bar" }]),
+    } as never);
+
+    expect(receivedOperations).toEqual([
+      { index: { _index: "logs-1", _id: "1" } },
+      { title: "foo" },
+      { index: { _index: "logs-1" } },
+      { title: "bar" },
+    ]);
+    expect(JSON.parse(result)).toEqual({
+      total: 2,
+      succeeded: 2,
+      failed: 0,
+      results: [{ id: "1", success: true }, { id: "auto-2", success: true }],
+    });
+  });
+
+  it("es_bulk_index reports per-document failures without aborting the batch", async () => {
+    const client = {
+      bulk: async () => ({
+        errors: true,
+        items: [
+          { index: { _id: "1", status: 201 } },
+          { index: { _id: "2", status: 409, error: { type: "version_conflict_engine_exception" } } },
+        ],
+      }),
+    };
+    const server = new FakeServer();
+    registerElasticsearchTools(server as never, makeFakeRegistry(false, { ok: true, client }) as never);
+
+    const result = await server.tools.es_bulk_index.execute({
+      index: "logs-1",
+      documents: JSON.stringify([{ _id: "1", a: 1 }, { _id: "2", a: 2 }]),
+    } as never);
+
+    const parsed = JSON.parse(result);
+    expect(parsed.total).toBe(2);
+    expect(parsed.succeeded).toBe(1);
+    expect(parsed.failed).toBe(1);
+    expect(parsed.results[1].success).toBe(false);
+    expect(parsed.results[1].error).toContain("version_conflict_engine_exception");
+  });
+
   it("es_update_doc updates a document and respects readOnly", async () => {
     const serverReadOnly = new FakeServer();
     registerElasticsearchTools(serverReadOnly as never, makeFakeRegistry(true, { ok: true, client: {} }) as never);

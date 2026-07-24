@@ -6,6 +6,7 @@ import { registerRedisTools } from "../tools/redis-tools.js";
 import { registerElasticsearchTools } from "../tools/elasticsearch-tools.js";
 import { registerMySqlTools } from "../tools/mysql-tools.js";
 import { registerMongoDbTools } from "../tools/mongodb-tools.js";
+import { registerLdapTools } from "../tools/ldap-tools.js";
 
 export function createServer(registry: ConnectionRegistry): FastMCP {
   const server = new FastMCP({
@@ -19,6 +20,7 @@ export function createServer(registry: ConnectionRegistry): FastMCP {
   registerElasticsearchTools(server, registry);
   registerMySqlTools(server, registry);
   registerMongoDbTools(server, registry);
+  registerLdapTools(server, registry);
 
   return server;
 }

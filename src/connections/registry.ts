@@ -3,10 +3,17 @@ import { RedisConnection } from "./redis-connection.js";
 import { ElasticsearchConnection } from "./elasticsearch-connection.js";
 import { MySqlConnection } from "./mysql-connection.js";
 import { MongoDbConnection } from "./mongodb-connection.js";
+import { LdapConnection } from "./ldap-connection.js";
 import { loadDatabaseConfig, type DatabaseConfigEntry } from "../config/loader.js";
 import type { ConnectionStatus } from "./types.js";
 
-export type AnyConnection = PostgresConnection | RedisConnection | ElasticsearchConnection | MySqlConnection | MongoDbConnection;
+export type AnyConnection =
+  | PostgresConnection
+  | RedisConnection
+  | ElasticsearchConnection
+  | MySqlConnection
+  | MongoDbConnection
+  | LdapConnection;
 
 function entriesEqual(a: DatabaseConfigEntry, b: DatabaseConfigEntry): boolean {
   return (
@@ -16,7 +23,9 @@ function entriesEqual(a: DatabaseConfigEntry, b: DatabaseConfigEntry): boolean {
     a.defaultSchema === b.defaultSchema &&
     a.defaultDatabase === b.defaultDatabase &&
     a.statementTimeoutMs === b.statementTimeoutMs &&
-    a.apiVersion === b.apiVersion
+    a.apiVersion === b.apiVersion &&
+    a.bindDn === b.bindDn &&
+    a.bindPassword === b.bindPassword
   );
 }
 
@@ -66,6 +75,15 @@ export class ConnectionRegistry {
         connectionString: entry.connectionString,
         readOnly: entry.readOnly,
         defaultDatabase: entry.defaultDatabase,
+      });
+    }
+    if (entry.type === "ldap") {
+      return new LdapConnection({
+        id: entry.id,
+        connectionString: entry.connectionString,
+        readOnly: entry.readOnly,
+        bindDn: entry.bindDn,
+        bindPassword: entry.bindPassword,
       });
     }
     return new RedisConnection({ id: entry.id, connectionString: entry.connectionString, readOnly: entry.readOnly });

@@ -1,7 +1,7 @@
 {
   "name": "mcp-server-db",
   "version": "0.1.0",
-  "description": "MCP server exposing Postgres, Redis, Elasticsearch, MySQL, and MongoDB as tools, with lazy connection management, retry, circuit breaking, per-connection read-only mode, and optional database drivers.",
+  "description": "MCP server exposing Postgres, Redis, Elasticsearch, MySQL, MongoDB, and LDAP as tools, with lazy connection management, retry, circuit breaking, per-connection read-only mode, and optional database drivers.",
   "type": "module",
   "license": "MIT",
   "keywords": [
@@ -13,6 +13,7 @@
     "elasticsearch",
     "mysql",
     "mongodb",
+    "ldap",
     "database",
     "db"
   ],
@@ -50,6 +51,7 @@
     "@elastic/elasticsearch": "^9.4.2",
     "es7-client": "npm:@elastic/elasticsearch@^7.17.14",
     "ioredis": "^5.11.1",
+    "ldapts": "8.2.0",
     "mongodb": "^7.5.0",
     "mysql2": "^3.23.1",
     "pg": "^8.22.0"

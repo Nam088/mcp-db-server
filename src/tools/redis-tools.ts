@@ -55,6 +55,29 @@ export function registerRedisTools(server: FastMCP, registry: ConnectionRegistry
   });
 
   server.addTool({
+    name: "redis_mset",
+    description:
+      "Set multiple string keys to their values in a single command (e.g. for seeding test/sample data) — far more efficient than one redis_set call per key. Blocked when that connection's own readOnly mode is enabled.",
+    parameters: z.object({
+      entries: z.string().describe('JSON object of key/value pairs to set, e.g. \'{"user:1:name":"Alice","user:2:name":"Bob"}\''),
+      connectionId: connectionIdParam,
+    }),
+    execute: async ({ entries, connectionId }) => {
+      const conn = resolveConnection(registry, "redis", connectionId);
+      requireWritable(conn);
+      const result = await conn.getClient();
+      if (!result.ok) throwUnavailable(result.status);
+      const parsed = JSON.parse(entries) as Record<string, string>;
+      const count = Object.keys(parsed).length;
+      if (count === 0) {
+        return JSON.stringify({ success: true, count: 0 });
+      }
+      await result.client.mset(parsed);
+      return JSON.stringify({ success: true, count });
+    },
+  });
+
+  server.addTool({
     name: "redis_del",
     description: "Delete a Redis key. Blocked when that connection's own readOnly mode is enabled.",
     parameters: z.object({ key: z.string(), connectionId: connectionIdParam }),

@@ -16,6 +16,11 @@ afterEach(() => {
   delete process.env.ELASTICSEARCH_READ_ONLY;
   delete process.env.ELASTICSEARCH_API_VERSION;
   delete process.env.TEST_PG_URL;
+  delete process.env.LDAP_URL;
+  delete process.env.LDAP_READ_ONLY;
+  delete process.env.LDAP_BIND_DN;
+  delete process.env.LDAP_BIND_PASSWORD;
+  delete process.env.TEST_LDAP_BIND_PASSWORD;
 });
 
 describe("loadDatabaseConfig", () => {
@@ -175,5 +180,63 @@ describe("loadDatabaseConfig", () => {
     const entries = loadDatabaseConfig(join(tmpdir(), "does-not-exist.yml"));
     expect(entries[0].statementTimeoutMs).toBe(5000);
     delete process.env.POSTGRES_STATEMENT_TIMEOUT_MS;
+  });
+
+  it("parses an ldap entry (bindDn/bindPassword) from a config file, expanding ${ENV_VAR} in bindPassword", () => {
+    process.env.TEST_LDAP_BIND_PASSWORD = "secret-from-env";
+    writeFileSync(
+      tmpConfigPath,
+      [
+        "connections:",
+        "  - id: directory",
+        "    type: ldap",
+        "    connectionString: ldap://localhost:389",
+        "    bindDn: cn=admin,dc=example,dc=com",
+        "    bindPassword: ${TEST_LDAP_BIND_PASSWORD}",
+        "    readOnly: false",
+      ].join("\n"),
+    );
+
+    const entries = loadDatabaseConfig(tmpConfigPath);
+    expect(entries).toEqual([
+      {
+        id: "directory",
+        type: "ldap",
+        connectionString: "ldap://localhost:389",
+        bindDn: "cn=admin,dc=example,dc=com",
+        bindPassword: "secret-from-env",
+        readOnly: false,
+      },
+    ]);
+  });
+
+  it("leaves ldap bindDn/bindPassword undefined in a config file when omitted (anonymous bind)", () => {
+    writeFileSync(
+      tmpConfigPath,
+      ["connections:", "  - id: directory", "    type: ldap", "    connectionString: ldap://localhost:389"].join("\n"),
+    );
+
+    const entries = loadDatabaseConfig(tmpConfigPath);
+    expect(entries[0].bindDn).toBeUndefined();
+    expect(entries[0].bindPassword).toBeUndefined();
+  });
+
+  it("falls back to LDAP_URL/LDAP_BIND_DN/LDAP_BIND_PASSWORD/LDAP_READ_ONLY env vars when no config file exists", () => {
+    process.env.LDAP_URL = "ldap://localhost:389";
+    process.env.LDAP_BIND_DN = "cn=admin,dc=example,dc=com";
+    process.env.LDAP_BIND_PASSWORD = "secret";
+    process.env.LDAP_READ_ONLY = "false";
+
+    const entries = loadDatabaseConfig(join(tmpdir(), "does-not-exist.yml"));
+    expect(entries).toEqual([
+      {
+        id: "ldap",
+        type: "ldap",
+        connectionString: "ldap://localhost:389",
+        readOnly: false,
+        bindDn: "cn=admin,dc=example,dc=com",
+        bindPassword: "secret",
+      },
+    ]);
   });
 });

@@ -64,6 +64,23 @@ describe("ConnectionRegistry", () => {
     expect(registry.countByType("elasticsearch")).toBe(1);
   });
 
+  it("builds an ldap connection from a config entry", () => {
+    const registry = new ConnectionRegistry([
+      {
+        id: "directory",
+        type: "ldap",
+        connectionString: "ldap://x:389",
+        readOnly: true,
+        bindDn: "cn=admin,dc=example,dc=com",
+        bindPassword: "secret",
+      },
+    ]);
+
+    expect(registry.get("directory")?.type).toBe("ldap");
+    expect(registry.get("directory")?.readOnly).toBe(true);
+    expect(registry.countByType("ldap")).toBe(1);
+  });
+
   it("reload() rebuilds an elasticsearch connection when only its apiVersion changes", async () => {
     const registry = new ConnectionRegistry(
       [{ id: "logs-es", type: "elasticsearch", connectionString: "http://x:9200", readOnly: true }],

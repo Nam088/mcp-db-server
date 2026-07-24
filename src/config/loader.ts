@@ -3,7 +3,7 @@ import { parse } from "yaml";
 
 export interface DatabaseConfigEntry {
   id: string;
-  type: "postgres" | "redis" | "elasticsearch" | "mysql" | "mongodb";
+  type: "postgres" | "redis" | "elasticsearch" | "mysql" | "mongodb" | "ldap";
   connectionString: string;
   readOnly: boolean;
   defaultSchema?: string;
@@ -11,6 +11,10 @@ export interface DatabaseConfigEntry {
   statementTimeoutMs?: number;
   /** Elasticsearch only: major version of the target server. Defaults to "9" (supports 8.x and 9.x). */
   apiVersion?: "7" | "8" | "9";
+  /** LDAP only: DN to bind as. Anonymous bind is used when omitted. */
+  bindDn?: string;
+  /** LDAP only: password for bindDn. */
+  bindPassword?: string;
 }
 
 interface RawConnectionEntry {
@@ -22,6 +26,8 @@ interface RawConnectionEntry {
   defaultDatabase?: string;
   statementTimeoutMs?: number;
   apiVersion?: string;
+  bindDn?: string;
+  bindPassword?: string;
 }
 
 interface RawConfigFile {
@@ -32,8 +38,15 @@ function expandEnvVars(value: string): string {
   return value.replace(/\$\{([A-Z0-9_]+)\}/g, (_match, name: string) => process.env[name] ?? "");
 }
 
-function assertKnownType(type: string): "postgres" | "redis" | "elasticsearch" | "mysql" | "mongodb" {
-  if (type === "postgres" || type === "redis" || type === "elasticsearch" || type === "mysql" || type === "mongodb") {
+function assertKnownType(type: string): "postgres" | "redis" | "elasticsearch" | "mysql" | "mongodb" | "ldap" {
+  if (
+    type === "postgres" ||
+    type === "redis" ||
+    type === "elasticsearch" ||
+    type === "mysql" ||
+    type === "mongodb" ||
+    type === "ldap"
+  ) {
     return type;
   }
   throw new Error(`Unsupported database type in config: ${type}`);
@@ -62,6 +75,8 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       defaultDatabase: entry.defaultDatabase,
       statementTimeoutMs: entry.statementTimeoutMs,
       apiVersion: assertApiVersion(entry.apiVersion),
+      bindDn: entry.bindDn ? expandEnvVars(entry.bindDn) : undefined,
+      bindPassword: entry.bindPassword ? expandEnvVars(entry.bindPassword) : undefined,
     }));
   }
 
@@ -113,6 +128,16 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       connectionString: process.env.MONGODB_URL,
       readOnly: envReadOnly("MONGODB_READ_ONLY"),
       defaultDatabase: process.env.MONGODB_DEFAULT_DATABASE,
+    });
+  }
+  if (process.env.LDAP_URL) {
+    entries.push({
+      id: "ldap",
+      type: "ldap",
+      connectionString: process.env.LDAP_URL,
+      readOnly: envReadOnly("LDAP_READ_ONLY"),
+      bindDn: process.env.LDAP_BIND_DN,
+      bindPassword: process.env.LDAP_BIND_PASSWORD,
     });
   }
   return entries;

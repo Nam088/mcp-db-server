@@ -31,3 +31,9 @@ connections:
     connectionString: ${MONGODB_URL}
     defaultDatabase: mydatabase
     readOnly: true
+  - id: directory
+    type: ldap
+    connectionString: ${LDAP_URL}
+    bindDn: ${LDAP_BIND_DN}
+    bindPassword: ${LDAP_BIND_PASSWORD}
+    readOnly: false

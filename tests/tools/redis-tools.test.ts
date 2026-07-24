@@ -61,6 +61,44 @@ describe("redis tools", () => {
     expect(setCalls).toEqual([["foo", "bar"]]);
   });
 
+  it("redis_mset refuses to run when the resolved connection's readOnly is true", async () => {
+    const server = new FakeServer();
+    registerRedisTools(server as never, makeFakeRegistry(true, { ok: true, client: {} }) as never);
+
+    await expect(server.tools.redis_mset.execute({ entries: '{"a":"1"}' } as never)).rejects.toThrow(/READ_ONLY/);
+  });
+
+  it("redis_mset sets every key/value pair in one call when writable", async () => {
+    const msetCalls: Array<Record<string, string>> = [];
+    const client = {
+      mset: async (obj: Record<string, string>) => {
+        msetCalls.push(obj);
+        return "OK";
+      },
+    };
+    const server = new FakeServer();
+    registerRedisTools(server as never, makeFakeRegistry(false, { ok: true, client }) as never);
+
+    const result = await server.tools.redis_mset.execute({
+      entries: '{"user:1:name":"Alice","user:2:name":"Bob"}',
+    } as never);
+
+    expect(JSON.parse(result)).toEqual({ success: true, count: 2 });
+    expect(msetCalls).toEqual([{ "user:1:name": "Alice", "user:2:name": "Bob" }]);
+  });
+
+  it("redis_mset is a no-op and does not call mset when entries is an empty object", async () => {
+    const msetCalls: unknown[] = [];
+    const client = { mset: async (obj: unknown) => msetCalls.push(obj) };
+    const server = new FakeServer();
+    registerRedisTools(server as never, makeFakeRegistry(false, { ok: true, client }) as never);
+
+    const result = await server.tools.redis_mset.execute({ entries: "{}" } as never);
+
+    expect(JSON.parse(result)).toEqual({ success: true, count: 0 });
+    expect(msetCalls).toHaveLength(0);
+  });
+
   it("redis_keys returns matching keys for a pattern", async () => {
     const client = { keys: async (pattern: string) => [`${pattern}-1`, `${pattern}-2`] };
     const server = new FakeServer();

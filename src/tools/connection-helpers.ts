@@ -5,8 +5,15 @@ import type { RedisConnection } from "../connections/redis-connection.js";
 import type { ElasticsearchConnection } from "../connections/elasticsearch-connection.js";
 import type { MySqlConnection } from "../connections/mysql-connection.js";
 import type { MongoDbConnection } from "../connections/mongodb-connection.js";
+import type { LdapConnection } from "../connections/ldap-connection.js";
 
-type AnyConnection = PostgresConnection | RedisConnection | ElasticsearchConnection | MySqlConnection | MongoDbConnection;
+type AnyConnection =
+  | PostgresConnection
+  | RedisConnection
+  | ElasticsearchConnection
+  | MySqlConnection
+  | MongoDbConnection
+  | LdapConnection;
 
 interface RegistryLike {
   get(id: string): AnyConnection | undefined;
@@ -19,9 +26,10 @@ export function resolveConnection(registry: RegistryLike, type: "redis", connect
 export function resolveConnection(registry: RegistryLike, type: "elasticsearch", connectionId?: string): ElasticsearchConnection;
 export function resolveConnection(registry: RegistryLike, type: "mysql", connectionId?: string): MySqlConnection;
 export function resolveConnection(registry: RegistryLike, type: "mongodb", connectionId?: string): MongoDbConnection;
+export function resolveConnection(registry: RegistryLike, type: "ldap", connectionId?: string): LdapConnection;
 export function resolveConnection(
   registry: RegistryLike,
-  type: "postgres" | "redis" | "elasticsearch" | "mysql" | "mongodb",
+  type: "postgres" | "redis" | "elasticsearch" | "mysql" | "mongodb" | "ldap",
   connectionId?: string,
 ): AnyConnection {
   const conn = connectionId ? registry.get(connectionId) : registry.findOneByType(type);
