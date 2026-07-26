@@ -312,7 +312,7 @@ connections:
 ### 1. Build and Run Locally
 
 ```bash
-git clone ssh://git@github.com/Nam088/mcp-database-server-v2.git
+git clone https://github.com/Nam088/mcp-database-server-v2.git
 cd mcp-database-server
 npm install
 npm run build    # Compiles TypeScript to dist/
