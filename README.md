@@ -312,7 +312,7 @@ connections:
 ### 1. Build and Run Locally
 
 ```bash
-git clone https://scm.idlogiq.com:30022/nam077.work/mcp-database-server.git
+git clone https://github.com/Nam088/mcp-database-server.git
 cd mcp-database-server
 npm install
 npm run build    # Compiles TypeScript to dist/
