@@ -3,6 +3,10 @@
   "version": "0.2.0",
   "description": "MCP server exposing Postgres, Redis, Elasticsearch, MySQL, MongoDB, and LDAP as tools, with lazy connection management, retry, circuit breaking, per-connection read-only mode, and optional database drivers.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Nam088/mcp-database-server-v2.git"
+  },
   "license": "MIT",
   "keywords": [
     "mcp",
