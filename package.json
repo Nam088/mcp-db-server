@@ -1,6 +1,6 @@
 {
   "name": "mcp-server-db",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP server exposing Postgres, Redis, Elasticsearch, MySQL, MongoDB, and LDAP as tools, with lazy connection management, retry, circuit breaking, per-connection read-only mode, and optional database drivers.",
   "type": "module",
   "repository": {
