@@ -5,10 +5,12 @@ const unbindMock = vi.fn();
 
 vi.mock("ldapts", () => {
   return {
-    Client: vi.fn().mockImplementation(() => ({
-      bind: bindMock,
-      unbind: unbindMock,
-    })),
+    Client: vi.fn().mockImplementation(function () {
+      return {
+        bind: bindMock,
+        unbind: unbindMock,
+      };
+    }),
   };
 });
 

@@ -16,11 +16,13 @@ const rawMethodsV9 = {
 };
 
 vi.mock("@elastic/elasticsearch", () => {
-  const ClientMock = vi.fn().mockImplementation(() => ({
-    ping: pingMockV9,
-    close: closeMockV9,
-    ...rawMethodsV9,
-  }));
+  const ClientMock = vi.fn().mockImplementation(function () {
+    return {
+      ping: pingMockV9,
+      close: closeMockV9,
+      ...rawMethodsV9,
+    };
+  });
   return { Client: ClientMock };
 });
 
@@ -40,11 +42,13 @@ const rawMethodsV7 = {
 };
 
 vi.mock("es7-client", () => {
-  const ClientMock = vi.fn().mockImplementation(() => ({
-    ping: pingMockV7,
-    close: closeMockV7,
-    ...rawMethodsV7,
-  }));
+  const ClientMock = vi.fn().mockImplementation(function () {
+    return {
+      ping: pingMockV7,
+      close: closeMockV7,
+      ...rawMethodsV7,
+    };
+  });
   return { Client: ClientMock };
 });
 

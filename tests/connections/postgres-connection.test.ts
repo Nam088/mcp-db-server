@@ -4,12 +4,14 @@ const queryMock = vi.fn();
 let lastErrorHandler: ((err: Error) => void) | undefined;
 
 vi.mock("pg", () => {
-  const MockPool = vi.fn().mockImplementation(() => ({
-    query: queryMock,
-    on: (event: string, handler: (err: Error) => void) => {
-      if (event === "error") lastErrorHandler = handler;
-    },
-  }));
+  const MockPool = vi.fn().mockImplementation(function () {
+    return {
+      query: queryMock,
+      on: (event: string, handler: (err: Error) => void) => {
+        if (event === "error") lastErrorHandler = handler;
+      },
+    };
+  });
   return {
     Pool: MockPool,
     default: { Pool: MockPool },

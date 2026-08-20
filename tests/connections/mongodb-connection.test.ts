@@ -6,15 +6,17 @@ const closeMock = vi.fn();
 
 vi.mock("mongodb", () => {
   return {
-    MongoClient: vi.fn().mockImplementation(() => ({
-      connect: connectMock,
-      close: closeMock,
-      db: () => ({
-        admin: () => ({
-          ping: pingMock,
+    MongoClient: vi.fn().mockImplementation(function () {
+      return {
+        connect: connectMock,
+        close: closeMock,
+        db: () => ({
+          admin: () => ({
+            ping: pingMock,
+          }),
         }),
-      }),
-    })),
+      };
+    }),
   };
 });
 
