@@ -42,6 +42,9 @@ async function main(): Promise<void> {
 
   // Tools are registered above; connections start in the background and never block startup.
   registry.startAll();
+  // Self-heal connections that gave up retrying (e.g. a tunnel wasn't up yet)
+  // instead of leaving them dead until a tool call happens to poke them.
+  registry.startHealthSweep();
 
   await server.start({ transportType: "stdio" });
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("pg", () => ({
   Pool: vi.fn().mockImplementation(() => ({
@@ -179,5 +179,69 @@ describe("ConnectionRegistry", () => {
     ]);
 
     await expect(registry.reload()).rejects.toThrow(/No configPath/);
+  });
+
+  describe("health sweep", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it("periodically re-invokes start() on connections that gave up", () => {
+      const registry = new ConnectionRegistry([
+        { id: "primary-pg", type: "postgres", connectionString: "postgres://x", readOnly: true },
+      ]);
+      const conn = registry.get("primary-pg")!;
+      const startSpy = vi.spyOn(conn, "start");
+
+      registry.startHealthSweep(1000);
+      expect(startSpy).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1000);
+      expect(startSpy).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(2000);
+      expect(startSpy).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not schedule a second interval when called again while one is already running", () => {
+      const registry = new ConnectionRegistry([
+        { id: "primary-pg", type: "postgres", connectionString: "postgres://x", readOnly: true },
+      ]);
+      const conn = registry.get("primary-pg")!;
+      const startSpy = vi.spyOn(conn, "start");
+
+      registry.startHealthSweep(1000);
+      registry.startHealthSweep(1000);
+
+      vi.advanceTimersByTime(1000);
+      expect(startSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("stopHealthSweep() cancels further sweeps", () => {
+      const registry = new ConnectionRegistry([
+        { id: "primary-pg", type: "postgres", connectionString: "postgres://x", readOnly: true },
+      ]);
+      const conn = registry.get("primary-pg")!;
+      const startSpy = vi.spyOn(conn, "start");
+
+      registry.startHealthSweep(1000);
+      registry.stopHealthSweep();
+
+      vi.advanceTimersByTime(5000);
+      expect(startSpy).not.toHaveBeenCalled();
+    });
+
+    it("closeAll() stops the health sweep", async () => {
+      const registry = new ConnectionRegistry([
+        { id: "primary-pg", type: "postgres", connectionString: "postgres://x", readOnly: true },
+      ]);
+      const conn = registry.get("primary-pg")!;
+      const startSpy = vi.spyOn(conn, "start");
+
+      registry.startHealthSweep(1000);
+      await registry.closeAll();
+
+      vi.advanceTimersByTime(5000);
+      expect(startSpy).not.toHaveBeenCalled();
+    });
   });
 });

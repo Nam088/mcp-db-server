@@ -35,6 +35,7 @@ export class ConnectionRegistry {
   private readonly entriesById = new Map<string, DatabaseConfigEntry>();
   public readonly configPath?: string;
   private reloading = false;
+  private sweepTimer?: NodeJS.Timeout;
 
   constructor(entries: DatabaseConfigEntry[], configPath?: string) {
     this.configPath = configPath;
@@ -95,7 +96,32 @@ export class ConnectionRegistry {
     for (const conn of this.connections.values()) conn.start();
   }
 
+  /**
+   * A BaseConnection gives up retrying after its maxRetries are exhausted (by
+   * design, to avoid hammering a database that's known to be down) and only
+   * wakes up again the next time a tool calls getClient(). If nothing ever
+   * calls a given connection again — e.g. it failed at process startup before
+   * its tunnel was even up — it stays dead silently, forever. This periodic
+   * sweep re-invokes start() on every connection (a no-op for ones already
+   * running/connected) so a connection that gave up gets another chance once
+   * whatever was blocking it (a tunnel, a restart) is resolved, without
+   * requiring a tool call to notice.
+   */
+  startHealthSweep(intervalMs = 60_000): void {
+    if (this.sweepTimer) return;
+    this.sweepTimer = setInterval(() => this.startAll(), intervalMs);
+    this.sweepTimer.unref?.();
+  }
+
+  stopHealthSweep(): void {
+    if (this.sweepTimer) {
+      clearInterval(this.sweepTimer);
+      this.sweepTimer = undefined;
+    }
+  }
+
   async closeAll(): Promise<void> {
+    this.stopHealthSweep();
     for (const conn of this.connections.values()) {
       await conn.stop();
     }
