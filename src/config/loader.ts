@@ -11,6 +11,13 @@ export interface DatabaseConfigEntry {
   statementTimeoutMs?: number;
   /** Elasticsearch only: major version of the target server. Defaults to "9" (supports 8.x and 9.x). */
   apiVersion?: "7" | "8" | "9";
+  /**
+   * Elasticsearch only: set to false to skip TLS certificate verification (e.g. an
+   * SSM-tunneled AWS OpenSearch domain reached via `localhost`, whose cert only lists
+   * the real AWS hostname as a SAN). Defaults to true. Never disable for a connection
+   * string that isn't a trusted local tunnel.
+   */
+  rejectUnauthorized?: boolean;
   /** LDAP only: DN to bind as. Anonymous bind is used when omitted. */
   bindDn?: string;
   /** LDAP only: password for bindDn. */
@@ -26,6 +33,7 @@ interface RawConnectionEntry {
   defaultDatabase?: string;
   statementTimeoutMs?: number;
   apiVersion?: string;
+  rejectUnauthorized?: boolean;
   bindDn?: string;
   bindPassword?: string;
 }
@@ -75,6 +83,7 @@ export function loadDatabaseConfig(configPath: string): DatabaseConfigEntry[] {
       defaultDatabase: entry.defaultDatabase,
       statementTimeoutMs: entry.statementTimeoutMs,
       apiVersion: assertApiVersion(entry.apiVersion),
+      rejectUnauthorized: entry.type === "elasticsearch" ? entry.rejectUnauthorized ?? true : entry.rejectUnauthorized,
       bindDn: entry.bindDn ? expandEnvVars(entry.bindDn) : undefined,
       bindPassword: entry.bindPassword ? expandEnvVars(entry.bindPassword) : undefined,
     }));

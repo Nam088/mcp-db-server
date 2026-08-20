@@ -28,6 +28,9 @@ export class RedisConnection extends BaseConnection<Redis> {
     const client = new RedisConstructor(this.connectionString, {
       lazyConnect: true,
       retryStrategy: () => null,
+      tls: this.connectionString.startsWith("rediss://")
+        ? { rejectUnauthorized: false }
+        : undefined,
     });
     client.on("error", (err: Error) => {
       this.onFatalError(err);

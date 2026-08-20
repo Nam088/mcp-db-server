@@ -85,6 +85,35 @@ describe("elasticsearch tools", () => {
     expect(receivedQuery).toEqual({ match: { title: "foo" } });
   });
 
+  it("es_search passes through sort, searchAfter, and seqNoPrimaryTerm for resumable pagination", async () => {
+    let received: unknown;
+    const client = {
+      search: async (args: unknown) => {
+        received = args;
+        return { hits: { hits: [] } };
+      },
+    };
+    const server = new FakeServer();
+    registerElasticsearchTools(server as never, makeFakeRegistry(true, { ok: true, client }) as never);
+
+    await server.tools.es_search.execute({
+      index: "logs-1",
+      size: 10,
+      sort: [{ _seq_no: "asc" }],
+      searchAfter: [42],
+      seqNoPrimaryTerm: true,
+    } as never);
+
+    expect(received).toEqual({
+      index: "logs-1",
+      query: { match_all: {} },
+      size: 10,
+      sort: [{ _seq_no: "asc" }],
+      searchAfter: [42],
+      seqNoPrimaryTerm: true,
+    });
+  });
+
   it("es_count returns document count", async () => {
     const client = { count: async () => ({ count: 42 }) };
     const server = new FakeServer();

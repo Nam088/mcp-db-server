@@ -145,6 +145,33 @@ describe("ElasticsearchConnection", () => {
     conn.stop();
   });
 
+  it("maps sort/searchAfter/seqNoPrimaryTerm to snake_case for the v9 client", async () => {
+    pingMockV9.mockResolvedValue(true);
+    rawMethodsV9.search.mockResolvedValue({ hits: { hits: [] } });
+    const conn = new ElasticsearchConnection({ id: "es6b", connectionString: "http://localhost:9200", sleep: fastSleep });
+
+    conn.start();
+    await waitUntil(() => conn.state === "connected");
+    const result = await conn.getClient();
+    if (!result.ok) throw new Error("expected connected");
+    await result.client.search({
+      index: "logs",
+      query: { match_all: {} },
+      sort: [{ _seq_no: "asc" }],
+      searchAfter: [42],
+      seqNoPrimaryTerm: true,
+    });
+
+    expect(rawMethodsV9.search).toHaveBeenCalledWith({
+      index: "logs",
+      query: { match_all: {} },
+      sort: [{ _seq_no: "asc" }],
+      search_after: [42],
+      seq_no_primary_term: true,
+    });
+    conn.stop();
+  });
+
   it("connects using the v7 client when apiVersion is '7'", async () => {
     pingMockV7.mockResolvedValue({ body: true });
     const conn = new ElasticsearchConnection({
@@ -186,6 +213,42 @@ describe("ElasticsearchConnection", () => {
     const countResponse = await result.client.count({ index: "logs", query: { match_all: {} } });
     expect(rawMethodsV7.count).toHaveBeenCalledWith({ index: "logs", body: { query: { match_all: {} } } });
     expect(countResponse).toEqual({ count: 3 });
+
+    conn.stop();
+  });
+
+  it("nests v7 sort/search_after/seq_no_primary_term under body, unmapped from camelCase", async () => {
+    pingMockV7.mockResolvedValue({ body: true });
+    rawMethodsV7.search.mockResolvedValue({ body: { hits: { hits: [] } }, statusCode: 200 });
+    const conn = new ElasticsearchConnection({
+      id: "es8b",
+      connectionString: "http://localhost:9200",
+      apiVersion: "7",
+      sleep: fastSleep,
+    });
+
+    conn.start();
+    await waitUntil(() => conn.state === "connected");
+    const result = await conn.getClient();
+    if (!result.ok) throw new Error("expected connected");
+
+    await result.client.search({
+      index: "logs",
+      query: { match_all: {} },
+      sort: [{ _seq_no: "asc" }],
+      searchAfter: [42],
+      seqNoPrimaryTerm: true,
+    });
+
+    expect(rawMethodsV7.search).toHaveBeenCalledWith({
+      index: "logs",
+      body: {
+        query: { match_all: {} },
+        sort: [{ _seq_no: "asc" }],
+        search_after: [42],
+        seq_no_primary_term: true,
+      },
+    });
 
     conn.stop();
   });

@@ -59,18 +59,42 @@ export function registerElasticsearchTools(server: FastMCP, registry: Connection
 
   server.addTool({
     name: "es_search",
-    description: "Run a search query against an index using Elasticsearch Query DSL.",
+    description:
+      "Run a search query against an index using Elasticsearch Query DSL. Supports sort + search_after for paginating past the default 10k-result window (e.g. sort by _seq_no for a resumable, ingestion-order-safe cursor across multi-index or data-stream sources). Pass seqNoPrimaryTerm: true to have each hit include its _seq_no/_primary_term.",
     parameters: z.object({
       index: indexParam,
       query: queryParam,
       size: z.number().int().optional().default(10).describe("Maximum number of hits to return."),
+      sort: z
+        .array(z.record(z.string(), z.enum(["asc", "desc"])))
+        .optional()
+        .describe(
+          'Sort clauses, e.g. [{"_seq_no": "asc"}] or [{"measured_date": "asc"}, {"_id": "asc"}]. Required for search_after to be meaningful — the sort values of the last hit are what you feed back in as searchAfter.',
+        ),
+      searchAfter: z
+        .array(z.union([z.string(), z.number()]))
+        .optional()
+        .describe(
+          "Resume point for pagination: the sort-tuple values from the last hit of a previous page (same order as `sort`). Omit for the first page.",
+        ),
+      seqNoPrimaryTerm: z
+        .boolean()
+        .optional()
+        .describe("Set true to have each returned hit include its _seq_no and _primary_term fields."),
       connectionId: connectionIdParam,
     }),
-    execute: async ({ index, query, size, connectionId }) => {
+    execute: async ({ index, query, size, sort, searchAfter, seqNoPrimaryTerm, connectionId }) => {
       const conn = resolveConnection(registry, "elasticsearch", connectionId);
       const result = await conn.getClient();
       if (!result.ok) throwUnavailable(result.status);
-      const response = await result.client.search({ index, query: query ?? { match_all: {} }, size });
+      const response = await result.client.search({
+        index,
+        query: query ?? { match_all: {} },
+        searchAfter,
+        seqNoPrimaryTerm,
+        size,
+        sort,
+      });
       return JSON.stringify(response.hits);
     },
   });

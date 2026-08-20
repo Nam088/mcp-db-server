@@ -24,6 +24,7 @@ function entriesEqual(a: DatabaseConfigEntry, b: DatabaseConfigEntry): boolean {
     a.defaultDatabase === b.defaultDatabase &&
     a.statementTimeoutMs === b.statementTimeoutMs &&
     a.apiVersion === b.apiVersion &&
+    a.rejectUnauthorized === b.rejectUnauthorized &&
     a.bindDn === b.bindDn &&
     a.bindPassword === b.bindPassword
   );
@@ -59,6 +60,7 @@ export class ConnectionRegistry {
         connectionString: entry.connectionString,
         readOnly: entry.readOnly,
         apiVersion: entry.apiVersion,
+        rejectUnauthorized: entry.rejectUnauthorized,
       });
     }
     if (entry.type === "mysql") {

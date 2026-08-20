@@ -104,8 +104,44 @@ describe("loadDatabaseConfig", () => {
 
     const entries = loadDatabaseConfig(tmpConfigPath);
     expect(entries).toEqual([
-      { id: "logs-es", type: "elasticsearch", connectionString: "http://localhost:9200", readOnly: false },
+      {
+        id: "logs-es",
+        type: "elasticsearch",
+        connectionString: "http://localhost:9200",
+        readOnly: false,
+        rejectUnauthorized: true,
+      },
     ]);
+  });
+
+  it("defaults rejectUnauthorized to true for an elasticsearch entry, but honors an explicit false", () => {
+    writeFileSync(
+      tmpConfigPath,
+      [
+        "connections:",
+        "  - id: logs-es",
+        "    type: elasticsearch",
+        "    connectionString: https://localhost:9200",
+        "    rejectUnauthorized: false",
+        "  - id: other-es",
+        "    type: elasticsearch",
+        "    connectionString: https://localhost:9201",
+      ].join("\n"),
+    );
+
+    const entries = loadDatabaseConfig(tmpConfigPath);
+    expect(entries[0].rejectUnauthorized).toBe(false);
+    expect(entries[1].rejectUnauthorized).toBe(true);
+  });
+
+  it("leaves rejectUnauthorized undefined for non-elasticsearch entries, even if the field were present", () => {
+    writeFileSync(
+      tmpConfigPath,
+      ["connections:", "  - id: primary-pg", "    type: postgres", "    connectionString: postgres://x"].join("\n"),
+    );
+
+    const entries = loadDatabaseConfig(tmpConfigPath);
+    expect(entries[0].rejectUnauthorized).toBeUndefined();
   });
 
   it("throws for an unsupported database type in a config file", () => {
