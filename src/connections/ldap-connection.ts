@@ -44,6 +44,10 @@ export class LdapConnection extends BaseConnection<Client> {
     return client;
   }
 
+  protected async pingClient(client: Client): Promise<void> {
+    await client.bind(this.bindDn ?? "", this.bindPassword ?? "");
+  }
+
   protected async closeClient(client: Client): Promise<void> {
     await client.unbind();
   }

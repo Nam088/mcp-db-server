@@ -183,7 +183,25 @@ export class ConnectionRegistry {
     return [...this.connections.values()].filter((c) => c.type === type).length;
   }
 
-  listStatuses(): ConnectionStatus[] {
-    return [...this.connections.values()].map((c) => c.getStatus());
+  listStatuses(filter?: { type?: string }): ConnectionStatus[] {
+    let matches = [...this.connections.values()];
+    if (filter?.type) {
+      matches = matches.filter((c) => c.type === filter.type);
+    }
+    return matches.map((c) => c.getStatus());
+  }
+
+  async probe(id: string, timeoutMs = 5000): Promise<ConnectionStatus | undefined> {
+    const conn = this.connections.get(id);
+    if (!conn) return undefined;
+    return await conn.probe(timeoutMs);
+  }
+
+  async probeAll(filter?: { type?: string }, timeoutMs = 5000): Promise<ConnectionStatus[]> {
+    let matches = [...this.connections.values()];
+    if (filter?.type) {
+      matches = matches.filter((c) => c.type === filter.type);
+    }
+    return await Promise.all(matches.map((c) => c.probe(timeoutMs)));
   }
 }

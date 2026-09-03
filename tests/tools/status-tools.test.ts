@@ -30,6 +30,113 @@ describe("db_status tool", () => {
     expect(JSON.parse(result)).toEqual(statuses);
   });
 
+  it("returns a single connection's status when connectionId is provided", async () => {
+    const fakeServer = new FakeServer();
+    const pgStatus: ConnectionStatus = { id: "primary-pg", type: "postgres", state: "connected", readOnly: true };
+    const fakeConn = { getStatus: () => pgStatus };
+    const fakeRegistry = {
+      get: (id: string) => (id === "primary-pg" ? fakeConn : undefined),
+      listStatuses: () => [pgStatus],
+    };
+
+    registerStatusTools(fakeServer as never, fakeRegistry as never);
+
+    const result = await fakeServer.tools.db_status.execute({ connectionId: "primary-pg" });
+    expect(JSON.parse(result)).toEqual(pgStatus);
+  });
+
+  it("supports 'id' alias for connectionId", async () => {
+    const fakeServer = new FakeServer();
+    const pgStatus: ConnectionStatus = { id: "primary-pg", type: "postgres", state: "connected", readOnly: true };
+    const fakeConn = { getStatus: () => pgStatus };
+    const fakeRegistry = {
+      get: (id: string) => (id === "primary-pg" ? fakeConn : undefined),
+      listStatuses: () => [pgStatus],
+    };
+
+    registerStatusTools(fakeServer as never, fakeRegistry as never);
+
+    const result = await fakeServer.tools.db_status.execute({ id: "primary-pg" });
+    expect(JSON.parse(result)).toEqual(pgStatus);
+  });
+
+  it("throws UserError when connectionId is not found", async () => {
+    const fakeServer = new FakeServer();
+    const fakeRegistry = {
+      get: () => undefined,
+      listStatuses: () => [{ id: "primary-pg", type: "postgres", state: "connected", readOnly: true }],
+    };
+
+    registerStatusTools(fakeServer as never, fakeRegistry as never);
+
+    await expect(fakeServer.tools.db_status.execute({ connectionId: "unknown-db" })).rejects.toThrow(
+      /Connection "unknown-db" not found/,
+    );
+  });
+
+  it("filters connections by type", async () => {
+    const fakeServer = new FakeServer();
+    const pgStatus: ConnectionStatus = { id: "primary-pg", type: "postgres", state: "connected", readOnly: true };
+    const fakeRegistry = {
+      listStatuses: (filter?: { type?: string }) => (filter?.type === "postgres" ? [pgStatus] : []),
+    };
+
+    registerStatusTools(fakeServer as never, fakeRegistry as never);
+
+    const result = await fakeServer.tools.db_status.execute({ type: "postgres" });
+    expect(JSON.parse(result)).toEqual([pgStatus]);
+  });
+
+  it("actively probes a single connection when probe is true", async () => {
+    const fakeServer = new FakeServer();
+    const probedStatus: ConnectionStatus = {
+      id: "primary-pg",
+      type: "postgres",
+      state: "connected",
+      readOnly: true,
+      latencyMs: 12,
+    };
+    let probeCalledWithTimeout: number | undefined;
+    const fakeConn = {
+      probe: async (timeoutMs: number) => {
+        probeCalledWithTimeout = timeoutMs;
+        return probedStatus;
+      },
+      getStatus: () => ({ id: "primary-pg", type: "postgres", state: "idle", readOnly: true }),
+    };
+    const fakeRegistry = {
+      get: () => fakeConn,
+      listStatuses: () => [],
+    };
+
+    registerStatusTools(fakeServer as never, fakeRegistry as never);
+
+    const result = await fakeServer.tools.db_status.execute({ connectionId: "primary-pg", probe: true, timeoutMs: 3000 });
+    expect(probeCalledWithTimeout).toBe(3000);
+    expect(JSON.parse(result)).toEqual(probedStatus);
+  });
+
+  it("probes all connections when probe is true without connectionId", async () => {
+    const fakeServer = new FakeServer();
+    const probedStatuses: ConnectionStatus[] = [
+      { id: "primary-pg", type: "postgres", state: "connected", readOnly: true, latencyMs: 5 },
+    ];
+    let probeAllCalled = false;
+    const fakeRegistry = {
+      probeAll: async () => {
+        probeAllCalled = true;
+        return probedStatuses;
+      },
+      listStatuses: () => [],
+    };
+
+    registerStatusTools(fakeServer as never, fakeRegistry as never);
+
+    const result = await fakeServer.tools.db_status.execute({ probe: true });
+    expect(probeAllCalled).toBe(true);
+    expect(JSON.parse(result)).toEqual(probedStatuses);
+  });
+
   it("db_reload_config calls reload on the registry and returns new statuses", async () => {
     const fakeServer = new FakeServer();
     let reloadCalled = false;

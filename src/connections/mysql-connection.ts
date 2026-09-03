@@ -44,6 +44,15 @@ export class MySqlConnection extends BaseConnection<Pool> {
     return pool;
   }
 
+  protected async pingClient(pool: Pool): Promise<void> {
+    const conn = await pool.getConnection();
+    try {
+      await conn.ping();
+    } finally {
+      conn.release();
+    }
+  }
+
   protected async closeClient(pool: Pool): Promise<void> {
     await pool.end();
   }

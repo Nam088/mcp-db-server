@@ -157,6 +157,10 @@ export class ElasticsearchConnection extends BaseConnection<ElasticsearchClient>
     return wrapV9Client(raw);
   }
 
+  protected async pingClient(client: ElasticsearchClient): Promise<void> {
+    await client.ping();
+  }
+
   protected async closeClient(client: ElasticsearchClient): Promise<void> {
     await client.close();
   }

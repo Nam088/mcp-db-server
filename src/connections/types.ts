@@ -18,6 +18,7 @@ export interface ConnectionStatus {
   readOnly: boolean;
   lastError?: ConnectionErrorInfo;
   nextRetryAt?: string;
+  latencyMs?: number;
 }
 
 export interface ConnectionUnavailable {

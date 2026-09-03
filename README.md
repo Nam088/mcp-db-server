@@ -121,7 +121,7 @@ LDAP_READ_ONLY=true
 
 ### System & Management Tools (2)
 
-- `db_status`: Inspect connection states (idle, connecting, connected, retrying, failed, circuit_open), read-only mode, and error logs across all configured databases.
+- `db_status`: Inspect connection states (idle, connecting, connected, retrying, failed, circuit_open), read-only mode, and error logs across all configured databases. Supports filtering by `connectionId` (or `id`) to check a single database, filtering by `type` (postgres/redis/etc.), and active live probing (`probe: true`) with round-trip latency measurement.
 - `db_reload_config`: Hot-reload `databases.config.yml` from disk and reconcile connections dynamically without interrupting active queries.
 
 ### Postgres Tools (30)

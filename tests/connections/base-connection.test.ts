@@ -17,6 +17,12 @@ class TestConnection extends BaseConnection<string> {
     return this.behavior(this.attempts);
   }
 
+  protected async pingClient(client: string): Promise<void> {
+    if (client === "ping-fail") {
+      throw new Error("ping failed");
+    }
+  }
+
   protected async closeClient(_client: string): Promise<void> {
     // no-op
   }
@@ -142,5 +148,54 @@ describe("BaseConnection", () => {
       expect(result.status.lastError?.message).toContain("ECONNREFUSED");
     }
     conn.stop();
+  });
+
+  describe("probe()", () => {
+    it("actively connects on demand and measures latency when idle", async () => {
+      const conn = new TestConnection(async () => "client-ok");
+      expect(conn.state).toBe("idle");
+
+      const status = await conn.probe(1000);
+      expect(status.state).toBe("connected");
+      expect(typeof status.latencyMs).toBe("number");
+      expect(status.latencyMs).toBeGreaterThanOrEqual(0);
+      expect(status.lastError).toBeUndefined();
+      await conn.stop();
+    });
+
+    it("runs pingClient and measures latency when already connected", async () => {
+      const conn = new TestConnection(async () => "client-ok");
+      await conn.probe(1000);
+      expect(conn.state).toBe("connected");
+
+      const status = await conn.probe(1000);
+      expect(status.state).toBe("connected");
+      expect(typeof status.latencyMs).toBe("number");
+      await conn.stop();
+    });
+
+    it("re-records failure and sets failed state if attemptConnect rejects during probe", async () => {
+      const conn = new TestConnection(async () => {
+        throw new Error("connection refused");
+      });
+
+      const status = await conn.probe(1000);
+      expect(status.state).toBe("failed");
+      expect(status.lastError?.message).toBe("connection refused");
+      expect(status.latencyMs).toBeUndefined();
+      await conn.stop();
+    });
+
+    it("marks failed and reports timeout if probe times out", async () => {
+      const conn = new TestConnection(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        return "client-ok";
+      });
+
+      const status = await conn.probe(20);
+      expect(status.state).toBe("failed");
+      expect(status.lastError?.message).toContain("timed out after 20ms");
+      await conn.stop();
+    });
   });
 });

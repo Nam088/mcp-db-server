@@ -47,6 +47,10 @@ export class PostgresConnection extends BaseConnection<Pool> {
     return pool;
   }
 
+  protected async pingClient(pool: Pool): Promise<void> {
+    await pool.query("SELECT 1");
+  }
+
   protected async closeClient(pool: Pool): Promise<void> {
     await pool.end();
   }

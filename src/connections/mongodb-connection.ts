@@ -31,6 +31,10 @@ export class MongoDbConnection extends BaseConnection<MongoClient> {
     return client;
   }
 
+  protected async pingClient(client: MongoClient): Promise<void> {
+    await client.db(this.defaultDatabase).admin().ping();
+  }
+
   protected async closeClient(client: MongoClient): Promise<void> {
     await client.close();
   }

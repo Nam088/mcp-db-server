@@ -40,6 +40,13 @@ export class RedisConnection extends BaseConnection<Redis> {
     return client;
   }
 
+  protected async pingClient(client: Redis): Promise<void> {
+    const res = await client.ping();
+    if (res !== "PONG") {
+      throw new Error(`Unexpected Redis ping response: ${res}`);
+    }
+  }
+
   protected async closeClient(client: Redis): Promise<void> {
     await client.quit();
   }

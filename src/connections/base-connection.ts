@@ -35,16 +35,20 @@ export abstract class BaseConnection<TClient> {
   private _state: ConnectionState = "idle";
   private _lastError?: ConnectionErrorInfo;
   private _nextRetryAt?: string;
+  private latencyMs?: number;
   private client?: TClient;
   private running = false;
   private isLooping = false;
-  private readonly breaker: CircuitBreakerPolicy;
+  private currentAttemptId = 0;
+  private readonly options: BaseConnectionOptions;
+  private breaker: CircuitBreakerPolicy;
   private readonly baseBackoffMs: number;
   private readonly maxBackoffMs: number;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly maxRetries: number;
 
   constructor(options: BaseConnectionOptions) {
+    this.options = options;
     this.id = options.id;
     this.type = options.type;
     this.readOnly = options.readOnly ?? true;
@@ -52,9 +56,13 @@ export abstract class BaseConnection<TClient> {
     this.maxBackoffMs = options.maxBackoffMs ?? 30_000;
     this.sleep = options.sleep ?? defaultSleep;
     this.maxRetries = options.maxRetries ?? 3;
-    this.breaker = circuitBreaker(handleAll, {
-      halfOpenAfter: options.circuitResetMs ?? 30_000,
-      breaker: new ConsecutiveBreaker(options.maxConsecutiveFailures ?? 5),
+    this.breaker = this.createBreaker();
+  }
+
+  private createBreaker(): CircuitBreakerPolicy {
+    return circuitBreaker(handleAll, {
+      halfOpenAfter: this.options.circuitResetMs ?? 30_000,
+      breaker: new ConsecutiveBreaker(this.options.maxConsecutiveFailures ?? 5),
     });
   }
 
@@ -70,6 +78,7 @@ export abstract class BaseConnection<TClient> {
       readOnly: this.readOnly,
       lastError: this._lastError,
       nextRetryAt: this._nextRetryAt,
+      latencyMs: this.latencyMs,
     };
   }
 
@@ -83,7 +92,9 @@ export abstract class BaseConnection<TClient> {
   }
 
   async stop(): Promise<void> {
+    this.currentAttemptId++;
     this.running = false;
+    this.latencyMs = undefined;
     const client = this.client;
     this.client = undefined;
     this._state = "idle";
@@ -98,6 +109,9 @@ export abstract class BaseConnection<TClient> {
 
   protected abstract closeClient(client: TClient): Promise<void>;
 
+  /** Pings an active connected client to verify connectivity and measure latency. */
+  protected abstract pingClient(client: TClient): Promise<void>;
+
   /** Never blocks: reports the current state and (re)starts the connection loop in the background if needed. */
   async getClient(): Promise<ClientResult<TClient>> {
     if (this._state === "connected" && this.client !== undefined) {
@@ -111,11 +125,83 @@ export abstract class BaseConnection<TClient> {
     return { ok: false, status: this.getStatus() };
   }
 
+  /**
+   * Actively checks or establishes connectivity for this connection on demand.
+   * If already connected, runs pingClient() to confirm socket liveness and measures latency.
+   * If disconnected or failed, immediately attempts connection with the given timeout.
+   */
+  async probe(timeoutMs = 5000): Promise<ConnectionStatus> {
+    const withTimeout = async <T>(promise: Promise<T>): Promise<T> => {
+      let timer: NodeJS.Timeout | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(`Connection probe timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+        timer.unref?.();
+      });
+      try {
+        return await Promise.race([promise, timeoutPromise]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
+
+    const startTime = Date.now();
+
+    if (this._state === "connected" && this.client !== undefined) {
+      try {
+        await withTimeout(this.pingClient(this.client));
+        this._lastError = undefined;
+        this.latencyMs = Date.now() - startTime;
+        return this.getStatus();
+      } catch (err) {
+        this.onFatalError(err instanceof Error ? err : new Error(String(err)));
+      }
+    }
+
+    const attemptId = ++this.currentAttemptId;
+    this._state = "connecting";
+    this._nextRetryAt = undefined;
+    this.latencyMs = undefined;
+
+    try {
+      const client = await withTimeout(this.attemptConnect());
+      if (attemptId !== this.currentAttemptId) {
+        try {
+          await this.closeClient(client);
+        } catch {
+          // ignore
+        }
+        return this.getStatus();
+      }
+      this.client = client;
+      this._state = "connected";
+      this._lastError = undefined;
+      this.latencyMs = Date.now() - startTime;
+      this.running = true;
+      this.breaker = this.createBreaker();
+    } catch (err) {
+      if (attemptId === this.currentAttemptId) {
+        this.recordFailure(err instanceof Error ? err : new Error(String(err)));
+        this._state = "failed";
+        this.running = false;
+        this.latencyMs = undefined;
+      }
+    }
+
+    return this.getStatus();
+  }
+
   /** Concrete adapters call this from their driver's error listener on an established connection. */
   protected onFatalError(err: Error): void {
+    const client = this.client;
     this.client = undefined;
+    this.latencyMs = undefined;
     this.recordFailure(err);
     this._state = "failed";
+    if (client) {
+      void this.closeClient(client).catch(() => {});
+    }
     if (this.running && !this.isLooping) {
       void Promise.resolve().then(() => {
         if (this.running && !this.isLooping) {
@@ -132,12 +218,25 @@ export abstract class BaseConnection<TClient> {
       while (this.running) {
         this._state = attempt === 0 ? "connecting" : "retrying";
         this._nextRetryAt = undefined;
+        const attemptId = ++this.currentAttemptId;
         try {
-          this.client = await this.breaker.execute(() => this.attemptConnect());
+          const client = await this.breaker.execute(() => this.attemptConnect());
+          if (attemptId !== this.currentAttemptId || !this.running) {
+            try {
+              await this.closeClient(client);
+            } catch {
+              // ignore
+            }
+            return;
+          }
+          this.client = client;
           this._state = "connected";
           this._lastError = undefined;
           return;
         } catch (err) {
+          if (attemptId !== this.currentAttemptId || !this.running) {
+            return;
+          }
           attempt++;
           if (err instanceof BrokenCircuitError) {
             this._state = "circuit_open";
